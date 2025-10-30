@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
       location: 'North Zone, City',
       area: '3 & 4 BHK Villas',
       price: 'From $280,000',
-      image: 'assets/img/project-1.jpg'
+      image: 'https://placehold.co/800x500/jpg?text=Green+Meadows+Villas'
     },
     {
       id: 'prj-oak-residence',
@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
       location: 'Central Business District',
       area: '2 BHK Apartments',
       price: 'Pre-launch | Enquire',
-      image: 'assets/img/project-2.jpg'
+      image: 'https://placehold.co/800x500/jpg?text=Oak+Residence'
     },
     {
       id: 'prj-skyline-plaza',
@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
       location: 'South Avenue',
       area: 'Retail + Office',
       price: 'Sold Out',
-      image: 'assets/img/project-3.jpg'
+      image: 'https://placehold.co/800x500/jpg?text=Skyline+Plaza'
     }
   ];
 
