@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SPL HOMES — Construction & Development</title>
+    <meta name="description" content="SPL HOMES is a construction and development company delivering residential and commercial projects with quality, transparency, and on-time delivery." />
+    <meta name="keywords" content="SPL HOMES, construction, developer, real estate, building, contractor" />
+    <meta name="theme-color" content="#0b5c4a" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="SPL HOMES — Construction & Development" />
+    <meta property="og:description" content="Quality construction and new projects available for purchase." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/assets/img/og-image.png" />
+    <meta property="og:url" content="https://example.com" />
+
+    <link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <a class="logo" href="#home">
+                <img src="/assets/img/logo.svg" alt="SPL HOMES" />
+                <span>SPL HOMES</span>
+            </a>
+            <nav class="nav">
+                <a href="#services">Services</a>
+                <a href="#projects">Projects</a>
+                <a href="#about">About</a>
+                <a href="#contact" class="btn btn-small">Contact</a>
+            </nav>
+        </div>
+    </header>
+
+    <main id="home">
+        <section class="hero">
+            <div class="container hero-inner">
+                <div class="hero-copy">
+                    <h1>We build spaces that last.</h1>
+                    <p>From foundations to finish, SPL HOMES delivers residential and commercial projects with uncompromising quality and on-time execution.</p>
+                    <div class="hero-cta">
+                        <a href="#projects" class="btn">Explore Projects</a>
+                        <a href="#contact" class="btn btn-outline">Get a Quote</a>
+                    </div>
+                    <div class="trust">
+                        <span>Quality • Transparency • On-time Delivery</span>
+                    </div>
+                </div>
+                <div class="hero-media">
+                    <img src="/assets/img/hero-placeholder.jpg" alt="Construction site" />
+                </div>
+            </div>
+        </section>
+
+        <section id="services" class="section">
+            <div class="container">
+                <h2>Our Services</h2>
+                <div class="grid grid-3">
+                    <div class="card">
+                        <div class="card-icon">🏗️</div>
+                        <h3>General Contracting</h3>
+                        <p>Full-service execution for residential and commercial builds, renovations, and fit-outs.</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">📐</div>
+                        <h3>Design & Build</h3>
+                        <p>End-to-end design, approvals, procurement, and construction under one roof.</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">🧱</div>
+                        <h3>Structural & Civil Works</h3>
+                        <p>Foundations, RCC, masonry, and finishing with strict QA/QC processes.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="projects" class="section section-alt">
+            <div class="container">
+                <div class="section-head">
+                    <h2>Projects</h2>
+                    <div class="filters">
+                        <button class="chip is-active" data-filter="all">All</button>
+                        <button class="chip" data-filter="current">Current</button>
+                        <button class="chip" data-filter="new">New / For Sale</button>
+                        <button class="chip" data-filter="completed">Completed</button>
+                    </div>
+                </div>
+
+                <div id="projectGrid" class="grid grid-3"></div>
+
+                <div class="section-cta">
+                    <a href="#contact" class="btn">Enquire Now</a>
+                </div>
+            </div>
+        </section>
+
+        <section id="about" class="section">
+            <div class="container">
+                <div class="split">
+                    <div>
+                        <h2>About SPL HOMES</h2>
+                        <p>SPL HOMES is a customer-first construction company focused on delivering durable, beautiful spaces. Our team brings decades of combined experience across planning, engineering, and execution.</p>
+                        <ul class="checks">
+                            <li>ISO-inspired QA/QC and safety processes</li>
+                            <li>Transparent budgeting and progress tracking</li>
+                            <li>Trusted local suppliers and craftsmen</li>
+                        </ul>
+                    </div>
+                    <div class="about-stats">
+                        <div class="stat"><span>50+</span> Projects Delivered</div>
+                        <div class="stat"><span>10+</span> Years Experience</div>
+                        <div class="stat"><span>100%</span> On-time Handover (last 12 mo.)</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="contact" class="section section-alt">
+            <div class="container">
+                <h2>Contact Us</h2>
+                <div class="split contact">
+                    <div class="contact-details">
+                        <p><strong>Phone:</strong> <a href="tel:+1234567890">+1 234 567 890</a></p>
+                        <p><strong>Email:</strong> <a href="mailto:info@splhomes.com">info@splhomes.com</a></p>
+                        <p><strong>WhatsApp:</strong> <a class="wa" href="https://wa.me/1234567890" target="_blank" rel="noopener">Chat on WhatsApp</a></p>
+                        <p><strong>Office:</strong> SPL HOMES, Main Street, City, Country</p>
+                    </div>
+                    <form class="contact-form" action="https://formspree.io/f/xyyvlqkp" method="POST">
+                        <div class="form-row">
+                            <label for="name">Name</label>
+                            <input id="name" name="name" type="text" placeholder="Your name" required />
+                        </div>
+                        <div class="form-row">
+                            <label for="email">Email</label>
+                            <input id="email" name="email" type="email" placeholder="you@example.com" required />
+                        </div>
+                        <div class="form-row">
+                            <label for="message">Message</label>
+                            <textarea id="message" name="message" rows="4" placeholder="Tell us about your project" required></textarea>
+                        </div>
+                        <button type="submit" class="btn">Send Message</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <div class="brand">
+                <img src="/assets/img/logo.svg" alt="SPL HOMES" />
+                <span>SPL HOMES</span>
+            </div>
+            <div class="copy">© <span id="year"></span> SPL HOMES. All rights reserved.</div>
+            <div class="socials">
+                <a href="#" aria-label="Facebook">Fb</a>
+                <a href="#" aria-label="Instagram">Ig</a>
+                <a href="#" aria-label="LinkedIn">Li</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/js/main.js"></script>
+</body>
+</html>
+
+
