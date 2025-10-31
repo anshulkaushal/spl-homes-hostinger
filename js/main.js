@@ -55,9 +55,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const list = filter === 'all' ? projects : projects.filter(p => p.status === filter);
     grid.innerHTML = list.map(p => `
       <article class="card project">
-        <img class="cover" src="${p.image}" alt="${p.title}">
+        <div class="media">
+          <img class="cover" src="${p.image}" alt="${p.title}">
+          <div class="badge-wrap"><span class="${badgeClass(p.status)}">${badgeLabel(p.status)}</span></div>
+        </div>
         <div>
-          <span class="${badgeClass(p.status)}">${badgeLabel(p.status)}</span>
           <h3>${p.title}</h3>
           <div class="meta">
             <span>📍 ${p.location}</span>
