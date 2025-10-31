@@ -139,6 +139,15 @@ input:focus, textarea:focus{ outline:2px solid var(--ring); border-color:var(--b
 .band-inner{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
 .band h3{ margin:0; font-size:24px; }
 
+/* Version badge */
+.version-badge{
+  position:fixed; right:12px; bottom:12px; z-index:50;
+  background:#0b1220; color:#e5e7eb; border:1px solid rgba(148,163,184,.25);
+  padding:6px 10px; border-radius:10px; font-size:12px; font-weight:700;
+  box-shadow:0 8px 20px rgba(0,0,0,.18);
+  opacity:.9;
+}
+
 /* Responsive */
 @media (max-width: 960px){
   .hero{ padding:84px 0; }

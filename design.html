@@ -1,0 +1,550 @@
+<!doctype html>
+
+<html lang="en">
+
+<head>
+
+  <meta charset="utf-8" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>Design Your Dream Home | Play & Plan</title>
+
+  <style>
+
+    :root {
+
+      --bg: #0f172a;          /* slate-900 */
+
+      --panel: #111827;       /* gray-900 */
+
+      --muted: #94a3b8;       /* slate-400 */
+
+      --text: #e5e7eb;        /* gray-200 */
+
+      --accent: #22d3ee;      /* cyan-400 */
+
+      --accent-2: #a78bfa;    /* violet-400 */
+
+      --ok: #10b981;          /* emerald-500 */
+
+      --warn: #fbbf24;        /* amber-400 */
+
+      --danger: #f87171;      /* red-400 */
+
+      --radius: 18px;
+
+      --shadow: 0 10px 30px rgba(0,0,0,.45);
+
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+
+      margin: 0; background: radial-gradient(1000px 600px at 10% -10%, rgba(34,211,238,.07), transparent),
+
+                                radial-gradient(800px 500px at 110% 10%, rgba(167,139,250,.07), transparent),
+
+                                var(--bg);
+
+      color: var(--text);
+
+      font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial;
+
+    }
+
+    header {
+
+      padding: 28px 18px 10px; max-width: 1200px; margin: 0 auto;
+
+    }
+
+    .brand {
+
+      display:flex; align-items:center; gap:14px; margin-bottom:12px;
+
+    }
+
+    .logo {
+
+      width: 42px; height: 42px; border-radius: 12px; background:
+
+        linear-gradient(135deg, var(--accent), var(--accent-2));
+
+      box-shadow: var(--shadow);
+
+    }
+
+    h1 { margin:0; font-weight:800; letter-spacing:.3px; font-size: clamp(24px, 3.2vw, 36px); }
+
+    p.sub { margin:.4rem 0 0; color: var(--muted); max-width: 78ch; }
+
+
+
+    .container { max-width: 1200px; margin: 16px auto 60px; padding: 0 18px; }
+
+
+
+    .panel {
+
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.02));
+
+      border: 1px solid rgba(148,163,184,.15);
+
+      border-radius: var(--radius);
+
+      box-shadow: var(--shadow);
+
+    }
+
+
+
+    .tabs { display:flex; gap:8px; flex-wrap: wrap; padding: 10px; }
+
+    .tab {
+
+      appearance:none; border:1px solid rgba(148,163,184,.25); background: #0b1220;
+
+      color: var(--text); padding: 10px 14px; border-radius: 999px; cursor: pointer;
+
+      transition: transform .06s ease, background .2s ease, border .2s ease; font-weight:600;
+
+    }
+
+    .tab[aria-selected="true"] { background: rgba(34,211,238,.15); border-color: var(--accent); }
+
+    .tab:hover { transform: translateY(-1px); }
+
+
+
+    .grid { display:grid; grid-template-columns: 1fr; gap:18px; }
+
+    @media (min-width: 980px) { .grid { grid-template-columns: 2fr 1fr; } }
+
+
+
+    .embed-wrap { aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden; border: 1px solid rgba(148,163,184,.2); }
+
+    iframe { width: 100%; height: 100%; border: 0; display:block; background:#000; }
+
+
+
+    .card { padding: 18px; }
+
+    .card h3 { margin: 0 0 8px; font-size: 18px; }
+
+    .card p { margin: 0 0 10px; color: var(--muted); }
+
+
+
+    .list { display:grid; gap:10px; margin: 10px 0 0; }
+
+    .li { display:flex; gap:10px; align-items:flex-start; }
+
+    .li .dot { width:18px; height:18px; flex:0 0 18px; border-radius:999px; background: radial-gradient(circle at 30% 30%, #fff3, transparent 60%), var(--accent);
+
+               box-shadow: 0 0 0 3px rgba(34,211,238,.12); }
+
+
+
+    form { display:grid; gap:12px; }
+
+    label { font-weight: 600; font-size: 14px; }
+
+    input, select, textarea {
+
+      width:100%; padding:12px 14px; border-radius: 12px; border: 1px solid rgba(148,163,184,.25);
+
+      background: #0b1220; color: var(--text);
+
+    }
+
+    textarea { min-height: 120px; }
+
+    .row { display:grid; grid-template-columns:1fr; gap:12px; }
+
+    @media (min-width:680px){ .row { grid-template-columns: 1fr 1fr; } }
+
+
+
+    .btn {
+
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+
+      color: #0b1220; font-weight: 800; border:0; padding: 12px 16px; border-radius: 12px; cursor: pointer;
+
+      box-shadow: 0 10px 24px rgba(34,211,238,.2);
+
+    }
+
+    .note { font-size: 13px; color: var(--muted); }
+
+    .badge { display:inline-block; padding:4px 10px; border-radius:999px; border:1px solid rgba(148,163,184,.3); color: var(--muted); font-size:12px; }
+
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#0b1220; border:1px solid rgba(148,163,184,.3); padding:2px 6px; border-radius:8px; }
+
+
+
+    footer { color: var(--muted); text-align:center; padding: 28px 18px; }
+
+    a { color: #7dd3fc; text-decoration: none; }
+
+  </style>
+
+</head>
+
+<body>
+
+  <header>
+
+    <div class="brand">
+
+      <div class="logo" aria-hidden="true"></div>
+
+      <div>
+
+        <h1>Design Your Dream Home</h1>
+
+        <p class="sub">Play with 2D/3D layouts right here, then send us your plan. Our team will turn your concept into a build‑ready design.</p>
+
+      </div>
+
+    </div>
+
+  </header>
+
+
+
+  <div class="container grid">
+
+    <!-- LEFT: Interactive embeds -->
+
+    <section class="panel">
+
+      <div class="tabs" role="tablist" aria-label="Design tool selector">
+
+        <button class="tab" role="tab" id="tab-floorplanner" aria-selected="true" aria-controls="panel-floorplanner" onclick="selectTool('floorplanner')">Floorplanner (Easy)</button>
+
+        <button class="tab" role="tab" id="tab-planner5d" aria-selected="false" aria-controls="panel-planner5d" onclick="selectTool('planner5d')">Planner 5D (3D)</button>
+
+        <button class="tab" role="tab" id="tab-sketchup" aria-selected="false" aria-controls="panel-sketchup" onclick="selectTool('sketchup')">SketchUp Viewer (Advanced)</button>
+
+      </div>
+
+
+
+      <div class="card">
+
+        <div id="panel-floorplanner" role="tabpanel" aria-labelledby="tab-floorplanner">
+
+          <h3>Floorplanner Embed</h3>
+
+          <p>Quick 2D → 3D room and house layouts. Drag walls, doors, windows, and furniture.</p>
+
+          <div class="embed-wrap" id="fp-embed">
+
+            <!--
+
+              Replace YOUR_FLOORPLANNER_EMBED_URL with your project/viewer link.
+
+              Example format: https://floorplanner.com/projects/XXXXXXXX/viewer
+
+              If you want a public template, create a sample project and set it to public.
+
+            -->
+
+            <iframe src="https://floorplanner.com/embed/YOUR_FLOORPLANNER_EMBED_URL" title="Floorplanner"></iframe>
+
+          </div>
+
+          <p class="note">Tip: Open your template in another tab, then copy the <span class="kbd">/embed/...</span> URL into the iframe above.</p>
+
+        </div>
+
+
+
+        <div id="panel-planner5d" role="tabpanel" aria-labelledby="tab-planner5d" hidden>
+
+          <h3>Planner 5D Embed</h3>
+
+          <p>Beautiful 3D walkthroughs with easy drag‑and‑drop rooms and furniture.</p>
+
+          <div class="embed-wrap">
+
+            <!-- Generic Planner 5D embed. Consider swapping with a specific project link from your account. -->
+
+            <iframe src="https://planner5d.com/embed/" title="Planner 5D" width="100%" height="600"></iframe>
+
+          </div>
+
+          <p class="note">For a branded experience, create a sample project in Planner 5D and use its share/embed link here.</p>
+
+        </div>
+
+
+
+        <div id="panel-sketchup" role="tabpanel" aria-labelledby="tab-sketchup" hidden>
+
+          <h3>SketchUp Web Viewer</h3>
+
+          <p>For advanced users and architects. Load a public model (e.g., from 3D Warehouse).</p>
+
+          <div class="embed-wrap">
+
+            <!--
+
+              SketchUp Web supports embedding public models. Replace the URL below with a public viewer link
+
+              generated from your SketchUp Web project or a 3D Warehouse model.
+
+            -->
+
+            <iframe src="https://3dwarehouse.sketchup.com/embed.html?mid=YOUR_MODEL_ID" title="SketchUp Viewer"></iframe>
+
+          </div>
+
+          <p class="note">Provide a starter model (e.g., a generic 3‑bed layout) and let users tweak dimensions.</p>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+
+    <!-- RIGHT: Lead capture + guidance -->
+
+    <aside class="panel card">
+
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+
+        <h3 style="margin:0;">Share your concept with us</h3>
+
+        <span class="badge">Free design review</span>
+
+      </div>
+
+      <p>Finished a draft? Send it to our design team. We’ll refine it into a build‑ready plan and provide an estimate.</p>
+
+
+
+      <form id="leadForm">
+
+        <div class="row">
+
+          <div>
+
+            <label for="name">Full name</label>
+
+            <input id="name" name="name" placeholder="Jane Smith" required />
+
+          </div>
+
+          <div>
+
+            <label for="email">Email</label>
+
+            <input id="email" name="email" type="email" placeholder="you@example.com" required />
+
+          </div>
+
+        </div>
+
+        <div class="row">
+
+          <div>
+
+            <label for="phone">Phone</label>
+
+            <input id="phone" name="phone" placeholder="+64 .." />
+
+          </div>
+
+          <div>
+
+            <label for="location">Build location</label>
+
+            <input id="location" name="location" placeholder="City / Region" />
+
+          </div>
+
+        </div>
+
+        <div class="row">
+
+          <div>
+
+            <label for="budget">Approx. budget (NZD)</label>
+
+            <select id="budget" name="budget">
+
+              <option value="">Select</option>
+
+              <option>Under $300k</option>
+
+              <option>$300k – $600k</option>
+
+              <option>$600k – $900k</option>
+
+              <option>$900k+</option>
+
+            </select>
+
+          </div>
+
+          <div>
+
+            <label for="timeline">Target timeline</label>
+
+            <select id="timeline" name="timeline">
+
+              <option value="">Select</option>
+
+              <option>0–3 months</option>
+
+              <option>3–6 months</option>
+
+              <option>6–12 months</option>
+
+              <option>12+ months</option>
+
+            </select>
+
+          </div>
+
+        </div>
+
+        <div>
+
+          <label for="tool">Which tool did you use?</label>
+
+          <select id="tool" name="tool">
+
+            <option>Floorplanner</option>
+
+            <option>Planner 5D</option>
+
+            <option>SketchUp</option>
+
+            <option>Other</option>
+
+          </select>
+
+        </div>
+
+        <div>
+
+          <label for="link">Share link to your design</label>
+
+          <input id="link" name="link" placeholder="Paste the public share link here" />
+
+        </div>
+
+        <div>
+
+          <label for="notes">Notes</label>
+
+          <textarea id="notes" name="notes" placeholder="Bedrooms, bathrooms, style, special features…"></textarea>
+
+        </div>
+
+        <button class="btn" type="submit">Send design</button>
+
+        <p class="note">By submitting, you agree we may contact you to discuss your project and next steps.</p>
+
+      </form>
+
+
+
+      <hr style="border-color: rgba(148,163,184,.15); margin: 18px 0;" />
+
+
+
+      <h3 style="margin-top:0;">How to get the best results</h3>
+
+      <div class="list">
+
+        <div class="li"><div class="dot"></div><div>Start with overall footprint and wall positions. Don’t worry about furniture first.</div></div>
+
+        <div class="li"><div class="dot"></div><div>Check dimensions (mm) and ceiling heights early.</div></div>
+
+        <div class="li"><div class="dot"></div><div>Place doors and windows where you want light & airflow.</div></div>
+
+        <div class="li"><div class="dot"></div><div>Add key rooms: bedrooms, kitchen triangle, bathrooms, laundry.</div></div>
+
+        <div class="li"><div class="dot"></div><div>Click <strong>3D</strong> to walk through and correct proportions.</div></div>
+
+      </div>
+
+    </aside>
+
+  </div>
+
+
+
+  <footer>
+
+    Need a hand? <a href="#" id="book">Book a free 20‑min consult</a> — we’ll review your plan live and suggest improvements.
+
+  </footer>
+
+
+
+  <script>
+
+    function selectTool(id){
+
+      const tabs = ["floorplanner","planner5d","sketchup"];
+
+      tabs.forEach(t => {
+
+        document.getElementById(`tab-${t}`).setAttribute('aria-selected', t===id ? 'true' : 'false');
+
+        document.getElementById(`panel-${t}`).hidden = t!==id;
+
+      });
+
+    }
+
+
+
+    // Basic form handler — replace with your backend endpoint or form service
+
+    document.getElementById('leadForm').addEventListener('submit', function(e){
+
+      e.preventDefault();
+
+      // Compose a mailto fallback for quick integration (replace EMAIL@YOURDOMAIN with your address)
+
+      const data = new FormData(e.target);
+
+      const params = new URLSearchParams(data).toString();
+
+      const subject = encodeURIComponent('New House Design Submission');
+
+      const body = encodeURIComponent(
+
+        `Name: ${data.get('name')}` + `\nEmail: ${data.get('email')}` + `\nPhone: ${data.get('phone')}` +
+
+        `\nLocation: ${data.get('location')}` + `\nBudget: ${data.get('budget')}` + `\nTimeline: ${data.get('timeline')}` +
+
+        `\nTool: ${data.get('tool')}` + `\nLink: ${data.get('link')}` + `\n\nNotes:\n${data.get('notes')}`
+
+      );
+
+      window.location.href = `mailto:EMAIL@YOURDOMAIN?subject=${subject}&body=${body}`;
+
+    });
+
+  </script>
+
+  <script src="js/version.js"></script>
+  <div class="version-badge" style="position:fixed; right:12px; bottom:12px; z-index:50; background:#0b1220; color:#e5e7eb; border:1px solid rgba(148,163,184,.25); padding:6px 10px; border-radius:10px; font-size:12px; font-weight:700; box-shadow:0 8px 20px rgba(0,0,0,.18); opacity:.9;"></div>
+
+</body>
+
+</html>
+
+
