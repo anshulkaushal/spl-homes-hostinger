@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /assets/
+Disallow: /js/
+Disallow: /css/
+
+# Sitemap
+Sitemap: https://spl-homes.com/sitemap.xml
+
+# Crawl-delay
+Crawl-delay: 1
+

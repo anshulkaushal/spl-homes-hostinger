@@ -54,21 +54,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!grid) return;
     const list = filter === 'all' ? projects : projects.filter(p => p.status === filter);
     grid.innerHTML = list.map(p => `
-      <article class="card project">
+      <article class="card project" itemscope itemtype="https://schema.org/Product">
         <div class="media">
-          <img class="cover" src="${p.image}" alt="${p.title}">
+          <img class="cover" src="${p.image}" alt="${p.title} - ${p.area} in ${p.location} by SPL HOMES" loading="lazy" width="800" height="500">
           <div class="badge-wrap"><span class="${badgeClass(p.status)}">${badgeLabel(p.status)}</span></div>
         </div>
         <div>
-          <h3>${p.title}</h3>
+          <h3 itemprop="name">${p.title}</h3>
           <div class="meta">
-            <span>📍 ${p.location}</span>
+            <span itemprop="address" itemscope itemtype="https://schema.org/PostalAddress">📍 <span itemprop="addressLocality">${p.location}</span></span>
             <span>📐 ${p.area}</span>
-            <span>💲 ${p.price}</span>
+            <span itemprop="offers" itemscope itemtype="https://schema.org/Offer">💲 <span itemprop="price">${p.price}</span></span>
           </div>
         </div>
         <div>
-          <a class="btn btn-small" href="#contact">Enquire</a>
+          <a class="btn btn-small" href="#contact" aria-label="Enquire about ${p.title}">Enquire</a>
         </div>
       </article>
     `).join('');
