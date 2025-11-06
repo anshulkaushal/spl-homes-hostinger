@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "SPL HOMES",
+    "slug": "spl-homes",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0a5a9c"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.splhomes.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app uses location for project location services."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0a5a9c"
+      },
+      "package": "com.splhomes.app",
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
