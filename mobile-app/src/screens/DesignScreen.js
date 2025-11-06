@@ -10,19 +10,24 @@ import {
 import {WebView} from 'react-native-webview';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
+import {API_ENDPOINTS} from '../config';
 
 const {height} = Dimensions.get('window');
 
 const DesignScreen = () => {
-  const [activeTab, setActiveTab] = useState('planner5d');
+  const [activeTab, setActiveTab] = useState('hostinger');
 
   const tabs = [
+    {id: 'hostinger', label: 'Design Page'},
     {id: 'floorplanner', label: 'Floorplanner (Easy)'},
     {id: 'planner5d', label: 'Planner 5D (3D)'},
     {id: 'sketchup', label: 'SketchUp (Advanced)'},
   ];
 
   const getEmbedUrl = tab => {
+    if (tab === 'hostinger') {
+      return API_ENDPOINTS.designPage;
+    }
     if (tab === 'planner5d') {
       return 'https://planner5d.com/embed/';
     }
@@ -73,8 +78,17 @@ const DesignScreen = () => {
           domStorageEnabled={true}
           startInLoadingState={true}
           onShouldStartLoadWithRequest={(request) => {
-            // Open external links in browser
-            if (request.url !== getEmbedUrl(activeTab) && !request.url.includes('planner5d.com') && !request.url.includes('floorplanner.com') && !request.url.includes('sketchup.com')) {
+            // Allow navigation within Hostinger domain
+            const hostingerUrl = API_ENDPOINTS.designPage.replace('/design.html', '');
+            if (request.url.includes(hostingerUrl.replace('https://', '').split('/')[0])) {
+              return true;
+            }
+            // Allow Planner 5D, Floorplanner, SketchUp domains
+            if (request.url.includes('planner5d.com') || request.url.includes('floorplanner.com') || request.url.includes('sketchup.com') || request.url.includes('3dwarehouse.sketchup.com')) {
+              return true;
+            }
+            // Open other external links in browser
+            if (request.url !== getEmbedUrl(activeTab)) {
               WebBrowser.openBrowserAsync(request.url);
               return false;
             }
