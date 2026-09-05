@@ -27,6 +27,9 @@
     "react-dom": "19.2.8",
     "zod": "^4.5.4"
   },
+  "overrides": {
+    "deepmerge-ts": "^8.0.1"
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22",
