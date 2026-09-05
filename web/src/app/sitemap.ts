@@ -4,10 +4,15 @@ import { locations } from "@/content/locations";
 import { projects } from "@/content/projects";
 import { services } from "@/content/services";
 import { site } from "@/content/site";
+import { shouldNoindex } from "@/lib/env-flags";
 import { coreSitemapPaths } from "@/lib/seo-routes";
+import { isPublicProductionUrl } from "@/lib/site-url";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = site.url.replace(/\/$/, "");
+  if (shouldNoindex() && isPublicProductionUrl(base)) {
+    return [];
+  }
   const staticPaths = coreSitemapPaths;
 
   return [

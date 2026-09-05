@@ -1,3 +1,5 @@
+import { resolveSiteUrl } from "@/lib/site-url";
+
 export const site = {
   name: "SPL Homes",
   legalName: "SPL Homes",
@@ -6,7 +8,7 @@ export const site = {
     "New homes, renovations and property development across Wellington. SPL Homes works with homeowners, investors and developers from the first idea through planning, construction and handover.",
   locale: "en_NZ",
   language: "en-NZ",
-  url: process.env.SITE_URL ?? "https://splhomes.co.nz",
+  url: resolveSiteUrl(),
   instagram: "https://www.instagram.com/spl.homes",
   phone: process.env.NEXT_PUBLIC_PHONE ?? "",
   email: process.env.NEXT_PUBLIC_EMAIL ?? "",

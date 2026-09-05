@@ -7,7 +7,9 @@ import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SkipLink } from "@/components/layout/SkipLink";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { site } from "@/content/site";
+import { shouldNoindex } from "@/lib/env-flags";
 import { createMetadata } from "@/lib/seo";
+import { isPublicProductionUrl } from "@/lib/site-url";
 import "./globals.css";
 
 const sans = Source_Sans_3({
@@ -42,7 +44,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             "@type": "HomeAndConstructionBusiness",
             name: site.name,
             description: site.description,
-            url: site.url,
+            ...(shouldNoindex() && isPublicProductionUrl(site.url) ? {} : { url: site.url }),
             areaServed: site.region,
             sameAs: [site.instagram],
             ...(site.phone ? { telephone: site.phone } : {}),

@@ -53,6 +53,12 @@ jobs:
           path: spl-homes-web.zip
           retention-days: 90
 
+      - name: Inspect and apply Prisma migrations
+        working-directory: web
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node scripts/migrate-remote.mjs
+
       - name: Deploy via Hostinger Node.js API
         env:
           HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
@@ -70,4 +76,5 @@ jobs:
         env:
           SMOKE_BASE_URL: ${{ vars.STAGING_URL || secrets.STAGING_URL }}
           SMOKE_MODE: staging
+          CI_LEAD_MARKER: ${{ secrets.CI_LEAD_MARKER }}
         run: node web/scripts/smoke.mjs

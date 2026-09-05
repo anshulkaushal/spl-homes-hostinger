@@ -10,8 +10,11 @@ const pages = [
   "/",
   "/services",
   "/projects",
-  "/start-your-project",
+  "/process",
+  "/about",
+  "/insights",
   "/contact",
+  "/start-your-project",
   "/robots.txt",
   "/sitemap.xml",
 ];
@@ -35,12 +38,26 @@ if (mode === "staging") {
     fail("Staging robots.txt must contain Disallow: /");
   }
   const robotsTag = robots.response.headers.get("x-robots-tag") || "";
-  if (!/noindex/i.test(robotsTag)) {
-    fail("Staging must send X-Robots-Tag: noindex");
+  if (!/noindex,\s*nofollow/i.test(robotsTag)) {
+    fail("Staging must send X-Robots-Tag: noindex, nofollow");
   }
 } else {
   if (/Disallow:\s*\/\s*$/m.test(robots.text) && !/Allow:\s*\//i.test(robots.text)) {
     fail("Production robots.txt must not disallow the whole site");
+  }
+}
+
+const sitemap = await fetchOk("/sitemap.xml");
+if (mode === "staging") {
+  if (/https:\/\/(www\.)?splhomes\.co\.nz(?![\w.-])/i.test(sitemap.text)) {
+    fail("Staging sitemap advertised public production URLs");
+  }
+  const home = await fetchOk("/");
+  if (/rel="canonical" href="https:\/\/(www\.)?splhomes\.co\.nz/i.test(home.text)) {
+    fail("Staging homepage used a production canonical");
+  }
+  if (/"@type":"HomeAndConstructionBusiness"[\s\S]*"url":"https:\/\/(www\.)?splhomes\.co\.nz/i.test(home.text)) {
+    fail("Staging schema used the production site URL");
   }
 }
 
