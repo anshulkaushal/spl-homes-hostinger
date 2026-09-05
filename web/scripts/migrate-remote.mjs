@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { assertStagingDatabaseTarget } from "./db-target.mjs";
 
 const url = process.env.DATABASE_URL;
 
@@ -22,19 +23,15 @@ const maskedHost =
 
 console.log(`Prisma target host=${maskedHost} database=${database}`);
 
-const looksProduction =
-  /prod/i.test(database) ||
-  /production/i.test(host) ||
-  database === "spl_homes" ||
-  database === "splhomes";
-
-if (looksProduction) {
+const target = assertStagingDatabaseTarget(database, host);
+if (target.reason === "production") {
   console.error("Refusing to migrate a database that looks like production.");
   process.exit(1);
 }
-
-const looksStaging = /stag/i.test(database) || /stag/i.test(host);
-if (!looksStaging && process.env.ALLOW_NONSTAGING_NAME !== "true") {
+if (
+  target.reason === "not-staging" &&
+  process.env.ALLOW_NONSTAGING_NAME !== "true"
+) {
   console.error(
     "Database host/name does not look like staging. Set ALLOW_NONSTAGING_NAME=true only after confirming the target.",
   );
