@@ -1,0 +1,73 @@
+name: Deploy staging
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to deploy (branch, tag, or commit SHA)
+        required: false
+        default: staging
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ github.event.inputs.ref || github.sha }}
+
+  deploy:
+    name: Deploy to Hostinger staging
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: splhomes-staging
+    env:
+      APP_ENV: staging
+      NOINDEX: "true"
+      USE_MYSQL: "false"
+      DATABASE_URL: mysql://unused:unused@127.0.0.1:3306/unused
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.sha }}
+
+      - name: Package source archive
+        working-directory: web
+        run: |
+          zip -r ../spl-homes-web.zip . \
+            -x "node_modules/*" \
+            -x ".next/*" \
+            -x ".env*" \
+            -x "data/leads.json" \
+            -x "*.tsbuildinfo"
+
+      - name: Store release archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: spl-homes-web-${{ github.sha }}
+          path: spl-homes-web.zip
+          retention-days: 90
+
+      - name: Deploy via Hostinger Node.js API
+        env:
+          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
+          HOSTINGER_USERNAME: ${{ secrets.HOSTINGER_USERNAME }}
+          HOSTINGER_DOMAIN: ${{ secrets.HOSTINGER_DOMAIN }}
+          HOSTINGER_ARCHIVE: ${{ github.workspace }}/spl-homes-web.zip
+          HOSTINGER_NODE_VERSION: "22"
+          HOSTINGER_BUILD_SCRIPT: build
+          HOSTINGER_APP_TYPE: next
+          HOSTINGER_PACKAGE_MANAGER: npm
+          HOSTINGER_OUTPUT_DIRECTORY: .next
+        run: node web/scripts/hostinger-deploy.mjs
+
+      - name: Smoke tests
+        env:
+          SMOKE_BASE_URL: ${{ vars.STAGING_URL || secrets.STAGING_URL }}
+          SMOKE_MODE: staging
+        run: node web/scripts/smoke.mjs

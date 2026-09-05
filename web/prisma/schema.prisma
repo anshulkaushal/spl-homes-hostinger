@@ -1,0 +1,194 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONSULTATION_BOOKED
+  PROPOSAL
+  WON
+  LOST
+  ARCHIVED
+}
+
+enum ImageKind {
+  HERO
+  GALLERY
+  BEFORE
+  AFTER
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  name         String
+  role         String    @default("admin")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@map("admin_users")
+}
+
+model Lead {
+  id                  String     @id @default(cuid())
+  reference           String     @unique
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+  name                String
+  email               String
+  phone               String?
+  preferredContact    String?    @map("preferred_contact")
+  projectType         String     @map("project_type")
+  location            String?
+  locationSuburb      String?    @map("location_suburb")
+  locationRegion      String?    @map("location_region")
+  streetAddress       String?    @map("street_address")
+  projectStage        String?    @map("project_stage")
+  budgetRange         String?    @map("budget_range")
+  timeframe           String?
+  description         String?    @db.Text
+  projectDetails      String?    @db.Text @map("project_details")
+  message             String?    @db.Text
+  source              String
+  landingPage         String?    @map("landing_page")
+  utmSource           String?    @map("utm_source")
+  utmMedium           String?    @map("utm_medium")
+  utmCampaign         String?    @map("utm_campaign")
+  utmContent          String?    @map("utm_content")
+  utmTerm             String?    @map("utm_term")
+  gclid               String?
+  fbclid              String?
+  status              LeadStatus @default(NEW)
+  consent             Boolean    @default(false)
+  consentAt           DateTime?  @map("consent_at")
+  marketingConsent    Boolean    @default(false) @map("marketing_consent")
+  marketingConsentAt  DateTime?  @map("marketing_consent_at")
+  isSynthetic         Boolean    @default(false) @map("is_synthetic")
+  idempotencyKey      String?    @unique @map("idempotency_key")
+  notes               String?    @db.Text
+
+  @@index([status, createdAt])
+  @@index([email])
+  @@index([isSynthetic, createdAt])
+  @@map("leads")
+}
+
+model Project {
+  id                    String   @id @default(cuid())
+  slug                  String   @unique
+  title                 String
+  projectType           String   @map("project_type")
+  location              String
+  completionYear        String?  @map("completion_year")
+  floorArea             String?  @map("floor_area")
+  bedrooms              String?
+  bathrooms             String?
+  duration              String?
+  architect             String?
+  excerpt               String   @db.Text
+  featured              Boolean  @default(false)
+  clientBrief           String?  @db.Text @map("client_brief")
+  challenge             String?  @db.Text
+  solution              String?  @db.Text
+  designApproach        String?  @db.Text @map("design_approach")
+  constructionApproach  String?  @db.Text @map("construction_approach")
+  outcome               String?  @db.Text
+  published             Boolean  @default(false)
+  sortOrder             Int      @default(0) @map("sort_order")
+  createdAt             DateTime @default(now()) @map("created_at")
+  images                ProjectImage[]
+  testimonials          Testimonial[]
+
+  @@map("projects")
+}
+
+model ProjectImage {
+  id        String    @id @default(cuid())
+  projectId String    @map("project_id")
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kind      ImageKind @default(GALLERY)
+  alt       String
+  src       String
+  sortOrder Int       @default(0) @map("sort_order")
+
+  @@map("project_images")
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  quote     String   @db.Text
+  attribution String
+  projectId String?  @map("project_id")
+  project   Project? @relation(fields: [projectId], references: [id])
+  published Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("testimonials")
+}
+
+model Article {
+  id             String    @id @default(cuid())
+  slug           String    @unique
+  title          String
+  excerpt        String    @db.Text
+  body           String    @db.LongText
+  category       String
+  publishedAt    DateTime? @map("published_at")
+  seoTitle       String?   @map("seo_title")
+  seoDescription String?   @map("seo_description")
+
+  @@map("articles")
+}
+
+model Location {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  region      String
+  summary     String  @db.Text
+  body        String  @db.LongText
+  isPublished Boolean @default(false) @map("is_published")
+  lat         Float?
+  lng         Float?
+
+  @@map("locations")
+}
+
+model Service {
+  id             String  @id @default(cuid())
+  slug           String  @unique
+  name           String
+  excerpt        String  @db.Text
+  body           String  @db.LongText
+  hero           String?
+  seoTitle       String? @map("seo_title")
+  seoDescription String? @map("seo_description")
+  isPublished    Boolean @default(true) @map("is_published")
+
+  @@map("services")
+}
+
+model Faq {
+  id          String  @id @default(cuid())
+  question    String
+  answer      String  @db.Text
+  sortOrder   Int     @default(0) @map("sort_order")
+  isPublished Boolean @default(true) @map("is_published")
+
+  @@map("faqs")
+}
+
+model SiteSetting {
+  key   String @id
+  value String @db.LongText @map("value_json")
+
+  @@map("site_settings")
+}

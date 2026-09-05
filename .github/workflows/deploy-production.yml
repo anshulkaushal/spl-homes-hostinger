@@ -1,0 +1,81 @@
+name: Deploy production
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to deploy (use a known-good SHA to roll back)
+        required: true
+        default: main
+      confirm:
+        description: Type deploy-production to confirm
+        required: true
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  confirm:
+    name: Confirm production intent
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require explicit confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "deploy-production" ]; then
+            echo "Confirmation text must be exactly: deploy-production"
+            exit 1
+          fi
+
+  ci:
+    needs: confirm
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ github.event.inputs.ref }}
+
+  deploy:
+    name: Deploy to Hostinger production
+    needs: [confirm, ci]
+    runs-on: ubuntu-latest
+    environment: splhomes-production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref }}
+
+      - name: Package source archive
+        working-directory: web
+        run: |
+          zip -r ../spl-homes-web.zip . \
+            -x "node_modules/*" \
+            -x ".next/*" \
+            -x ".env*" \
+            -x "data/leads.json" \
+            -x "*.tsbuildinfo"
+
+      - name: Store production release archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: spl-homes-web-production-${{ github.sha }}
+          path: spl-homes-web.zip
+          retention-days: 90
+
+      - name: Deploy via Hostinger Node.js API
+        env:
+          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
+          HOSTINGER_USERNAME: ${{ secrets.HOSTINGER_USERNAME }}
+          HOSTINGER_DOMAIN: ${{ secrets.HOSTINGER_DOMAIN }}
+          HOSTINGER_ARCHIVE: ${{ github.workspace }}/spl-homes-web.zip
+          HOSTINGER_NODE_VERSION: "22"
+          HOSTINGER_BUILD_SCRIPT: build
+          HOSTINGER_APP_TYPE: next
+          HOSTINGER_PACKAGE_MANAGER: npm
+          HOSTINGER_OUTPUT_DIRECTORY: .next
+        run: node web/scripts/hostinger-deploy.mjs
+
+      - name: Smoke tests
+        env:
+          SMOKE_BASE_URL: ${{ vars.PRODUCTION_URL || secrets.PRODUCTION_URL }}
+          SMOKE_MODE: production
+        run: node web/scripts/smoke.mjs
