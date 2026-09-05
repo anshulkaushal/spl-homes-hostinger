@@ -36,6 +36,13 @@ jobs:
         with:
           ref: ${{ github.event.inputs.ref || github.sha }}
 
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
       - name: Package source archive
         working-directory: web
         run: |
@@ -52,6 +59,10 @@ jobs:
           name: spl-homes-web-${{ github.sha }}
           path: spl-homes-web.zip
           retention-days: 90
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm ci
 
       - name: Inspect and apply Prisma migrations
         working-directory: web

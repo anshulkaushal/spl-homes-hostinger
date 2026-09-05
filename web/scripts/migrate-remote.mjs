@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { assertStagingDatabaseTarget } from "./db-target.mjs";
 
@@ -38,16 +39,22 @@ if (
   process.exit(1);
 }
 
-const status = spawnSync("npx", ["prisma", "migrate", "status"], {
-  stdio: "inherit",
-  shell: process.platform === "win32",
-});
+if (!existsSync("node_modules/prisma")) {
+  console.error("Pinned Prisma CLI is not installed. Run npm ci in web/ first.");
+  process.exit(1);
+}
+
+function runPrisma(args) {
+  return spawnSync("npm", ["exec", "--", "prisma", ...args], {
+    stdio: "inherit",
+    shell: process.platform === "win32",
+  });
+}
+
+const status = runPrisma(["migrate", "status"]);
 if (status.status !== 0) {
   process.exit(status.status ?? 1);
 }
 
-const deploy = spawnSync("npx", ["prisma", "migrate", "deploy"], {
-  stdio: "inherit",
-  shell: process.platform === "win32",
-});
+const deploy = runPrisma(["migrate", "deploy"]);
 process.exit(deploy.status ?? 1);
