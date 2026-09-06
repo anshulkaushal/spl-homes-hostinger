@@ -54,6 +54,69 @@ async function fetchOk(base, requestPath, options = {}) {
   return { url, response, text: await response.text() };
 }
 
+// Hostinger's hcdn front proxy serves /robots.txt on *.hostingersite.com
+// temporary hostnames before the request reaches Next.js. Live evidence:
+// Server: hcdn, no x-powered-by / x-nextjs / x-robots-tag, and a
+// Googlebot-only Disallow policy. Application pages still come from Next
+// and must keep X-Robots-Tag: noindex, nofollow.
+export function isHostingerTemporaryHostname(hostname) {
+  return /(^|\.)hostingersite\.com$/i.test(String(hostname || ""));
+}
+
+export function robotsTxtBlocksGooglebot(body) {
+  const group = String(body ?? "").match(/User-agent:\s*Googlebot\b(.*?)(?=User-agent:|$)/is);
+  return Boolean(group && /Disallow:\s*\/\s*$/m.test(group[1]));
+}
+
+export function hasNoindexNofollow(header) {
+  return /noindex,\s*nofollow/i.test(String(header || ""));
+}
+
+export function evaluateStagingHomeRobotsTag(header) {
+  if (hasNoindexNofollow(header)) {
+    return { ok: true, expected: "X-Robots-Tag: noindex, nofollow" };
+  }
+  return {
+    ok: false,
+    expected: "Staging / must send X-Robots-Tag: noindex, nofollow",
+  };
+}
+
+export function evaluateStagingRobotsTxt({ hostname, status, body, robotsTag }) {
+  if (status !== 200) {
+    return { ok: false, expected: "HTTP 200 for /robots.txt" };
+  }
+
+  if (isHostingerTemporaryHostname(hostname)) {
+    if (!robotsTxtBlocksGooglebot(body)) {
+      return {
+        ok: false,
+        expected:
+          "Hostinger temporary-domain /robots.txt must block Googlebot with Disallow: /",
+      };
+    }
+    return {
+      ok: true,
+      expected:
+        "Hostinger temporary-domain robots: Googlebot Disallow: / (X-Robots-Tag not required; hcdn serves this file)",
+    };
+  }
+
+  if (!/Disallow:\s*\//i.test(String(body ?? ""))) {
+    return { ok: false, expected: "Staging robots.txt must contain Disallow: /" };
+  }
+  if (!hasNoindexNofollow(robotsTag)) {
+    return {
+      ok: false,
+      expected: "Staging must send X-Robots-Tag: noindex, nofollow",
+    };
+  }
+  return {
+    ok: true,
+    expected: "Application-owned staging robots: Disallow: / and X-Robots-Tag",
+  };
+}
+
 export async function runSmoke(env = process.env) {
   const base = (env.SMOKE_BASE_URL || "").replace(/\/$/, "");
   const mode = env.SMOKE_MODE || "staging";
@@ -77,32 +140,29 @@ export async function runSmoke(env = process.env) {
   ];
 
   const robots = await fetchOk(base, "/robots.txt");
-  if (!robots.response.ok) {
+  const hostname = new URL(base).hostname;
+  if (mode === "staging") {
+    const robotsCheck = evaluateStagingRobotsTxt({
+      hostname,
+      status: robots.response.status,
+      body: robots.text,
+      robotsTag: robots.response.headers.get("x-robots-tag") || "",
+    });
+    if (!robotsCheck.ok) {
+      fail(robotsCheck.expected, {
+        path: "/robots.txt",
+        status: robots.response.status,
+        headerName: isHostingerTemporaryHostname(hostname) ? undefined : "X-Robots-Tag",
+        header: robots.response.headers.get("x-robots-tag") || "",
+        body: robots.text,
+      });
+    }
+  } else if (!robots.response.ok) {
     fail(`${robots.url} returned ${robots.response.status}`, {
       path: "/robots.txt",
       status: robots.response.status,
       body: robots.text,
     });
-  }
-
-  if (mode === "staging") {
-    if (!/Disallow:\s*\//i.test(robots.text)) {
-      fail("Staging robots.txt must contain Disallow: /", {
-        path: "/robots.txt",
-        status: robots.response.status,
-        body: robots.text,
-      });
-    }
-    const robotsTag = robots.response.headers.get("x-robots-tag") || "";
-    if (!/noindex,\s*nofollow/i.test(robotsTag)) {
-      fail("Staging must send X-Robots-Tag: noindex, nofollow", {
-        path: "/robots.txt",
-        status: robots.response.status,
-        headerName: "X-Robots-Tag",
-        header: robotsTag,
-        body: robots.text,
-      });
-    }
   } else if (/Disallow:\s*\/\s*$/m.test(robots.text) && !/Allow:\s*\//i.test(robots.text)) {
     fail("Production robots.txt must not disallow the whole site", {
       path: "/robots.txt",
@@ -121,6 +181,15 @@ export async function runSmoke(env = process.env) {
       });
     }
     const home = await fetchOk(base, "/");
+    const homeTag = evaluateStagingHomeRobotsTag(home.response.headers.get("x-robots-tag") || "");
+    if (!homeTag.ok) {
+      fail(homeTag.expected, {
+        path: "/",
+        status: home.response.status,
+        headerName: "X-Robots-Tag",
+        header: home.response.headers.get("x-robots-tag") || "",
+      });
+    }
     if (/rel="canonical" href="https:\/\/(www\.)?splhomes\.co\.nz/i.test(home.text)) {
       fail("Staging homepage used a production canonical", {
         path: "/",
