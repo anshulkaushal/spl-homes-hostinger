@@ -3,15 +3,20 @@ import { describe, it } from "node:test";
 import {
   HOSTINGER_API_BASE,
   HOSTINGER_UPLOAD_URLS_PATH,
+  TUS_UPLOAD_BACKOFF_MS,
+  TUS_UPLOAD_MAX_ATTEMPTS,
   buildStartBuildRequest,
   extractBuildUuid,
   extractFetchCauseFields,
   formatBuildFailureReport,
   formatFetchFailure,
+  formatTusRetryReason,
+  isRetryableTusFailure,
   looksLikeHtmlChallenge,
   nodejsBuildsPath,
   parseUploadUrlResource,
   redactSecrets,
+  retryTusUpload,
   safeRequestHostname,
   summarizeApiError,
   tusUploadUrl,
@@ -171,5 +176,117 @@ describe("Hostinger archive deploy API helpers", () => {
       }),
       /leaked-token|abc|mysql:\/\/user:secret@db\/app/,
     );
+  });
+
+  it("retries only transient TUS network and server failures", () => {
+    const fetchFailed = new Error(
+      formatFetchFailure({
+        operation: "TUS POST",
+        method: "POST",
+        url: "https://tus.hostinger.example/files/spl-homes-web.zip?override=true&signature=super-signed-secret",
+        error: Object.assign(new TypeError("fetch failed"), {
+          cause: { code: "ECONNRESET", hostname: "tus.hostinger.example" },
+        }),
+      }),
+    );
+    const timedOut = Object.assign(new TypeError("fetch failed"), { cause: { code: "ETIMEDOUT" } });
+
+    assert.equal(isRetryableTusFailure(new Error("TUS upload failed: 503 Bad Gateway")), true);
+    assert.equal(isRetryableTusFailure(Object.assign(new Error("TUS create failed: 429 Too Many Requests"), { status: 429 })), true);
+    assert.equal(isRetryableTusFailure(fetchFailed), true);
+    assert.equal(isRetryableTusFailure(timedOut), true);
+    assert.equal(isRetryableTusFailure(new Error("TUS create failed: 400 Bad Request")), false);
+    assert.equal(isRetryableTusFailure(new Error("TUS upload failed: 401 Unauthorized")), false);
+    assert.equal(isRetryableTusFailure(new Error("TUS create failed: 403 Forbidden")), false);
+    assert.equal(isRetryableTusFailure(new Error("TUS upload failed: 404 Not Found")), false);
+    assert.equal(formatTusRetryReason(new Error("TUS upload failed: 503 Bad Gateway")), "HTTP 503");
+    assert.equal(formatTusRetryReason(timedOut), "ETIMEDOUT");
+    assert.equal(formatTusRetryReason(fetchFailed), "ECONNRESET");
+    assert.doesNotMatch(formatTusRetryReason(fetchFailed), /super-signed-secret|https:\/\//);
+  });
+
+  it("retries a TUS upload up to 3 times with 2s then 5s backoff", async () => {
+    assert.deepEqual(TUS_UPLOAD_MAX_ATTEMPTS, 3);
+    assert.deepEqual(TUS_UPLOAD_BACKOFF_MS, [2000, 5000]);
+
+    const delays = [];
+    const logs = [];
+    let attempts = 0;
+    await assert.rejects(
+      () =>
+        retryTusUpload(
+          async () => {
+            attempts += 1;
+            throw new Error("TUS upload failed: 503 unavailable");
+          },
+          {
+            sleep: async (ms) => {
+              delays.push(ms);
+            },
+            log: (message) => logs.push(message),
+          },
+        ),
+      /TUS upload failed: 503/,
+    );
+
+    assert.equal(attempts, 3);
+    assert.deepEqual(delays, [2000, 5000]);
+    assert.match(logs[0], /TUS upload attempt 1\/3 failed \(HTTP 503\); retrying in 2000ms/);
+    assert.match(logs[1], /TUS upload attempt 2\/3 failed \(HTTP 503\); retrying in 5000ms/);
+    assert.match(logs[2], /TUS upload attempt 3\/3 failed \(HTTP 503\); not retrying/);
+    for (const message of logs) {
+      assert.doesNotMatch(message, /Authorization|X-Auth|Bearer|password|signature=/i);
+    }
+  });
+
+  it("does not retry permanent TUS 4xx errors", async () => {
+    let attempts = 0;
+    await assert.rejects(
+      () =>
+        retryTusUpload(
+          async () => {
+            attempts += 1;
+            throw Object.assign(new Error("TUS create failed: 403 Forbidden"), { status: 403 });
+          },
+          {
+            sleep: async () => {
+              throw new Error("should not sleep for permanent TUS failures");
+            },
+            log: () => {},
+          },
+        ),
+      /TUS create failed: 403/,
+    );
+    assert.equal(attempts, 1);
+  });
+
+  it("succeeds after a transient TUS failure without leaking upload secrets", async () => {
+    let attempts = 0;
+    const logs = [];
+    const result = await retryTusUpload(
+      async () => {
+        attempts += 1;
+        if (attempts === 1) {
+          throw new Error(
+            formatFetchFailure({
+              operation: "TUS PATCH",
+              method: "PATCH",
+              url: "https://tus.hostinger.example/files/spl-homes-web.zip?override=true&signature=super-signed-secret",
+              error: Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNRESET" } }),
+            }),
+          );
+        }
+        return "spl-homes-web.zip";
+      },
+      {
+        sleep: async () => {},
+        log: (message) => logs.push(message),
+      },
+    );
+
+    assert.equal(result, "spl-homes-web.zip");
+    assert.equal(attempts, 2);
+    assert.match(logs[0], /attempt 1\/3 failed \(ECONNRESET\); retrying in 2000ms/);
+    assert.doesNotMatch(logs.join("\n"), /super-signed-secret|tus\.hostinger\.example|https:\/\//);
   });
 });

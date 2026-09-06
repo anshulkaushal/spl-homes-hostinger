@@ -277,6 +277,78 @@ async function hostingerApi(token, pathname, init = {}) {
   );
 }
 
+export const TUS_UPLOAD_MAX_ATTEMPTS = 3;
+export const TUS_UPLOAD_BACKOFF_MS = [2000, 5000];
+
+const TRANSIENT_NETWORK_CODES = ["ETIMEDOUT", "ECONNRESET"];
+
+function collectFailureText(error) {
+  if (error == null) return "";
+  if (typeof error !== "object") return String(error);
+  const parts = [error.message, error.code, error.cause?.code, error.cause?.message];
+  return parts.filter(Boolean).join("\n");
+}
+
+export function extractTusFailureStatus(error) {
+  if (error && typeof error === "object") {
+    const status = error.status ?? error.statusCode;
+    if (Number.isInteger(status) && status >= 100 && status <= 599) {
+      return status;
+    }
+  }
+  const match = collectFailureText(error).match(/TUS (?:create|upload) failed:\s*(\d{3})\b/);
+  return match ? Number(match[1]) : undefined;
+}
+
+export function formatTusRetryReason(error) {
+  const status = extractTusFailureStatus(error);
+  if (status != null) return `HTTP ${status}`;
+
+  const text = collectFailureText(error);
+  for (const code of TRANSIENT_NETWORK_CODES) {
+    if (text.includes(code)) return code;
+  }
+  if (/fetch failed/i.test(text)) return "fetch failed";
+
+  const firstLine = redactSecrets(stripRequestUrls(text.split("\n")[0] || "unknown error")).slice(0, 80);
+  return firstLine || "unknown error";
+}
+
+export function isRetryableTusFailure(error) {
+  const status = extractTusFailureStatus(error);
+  if (status != null) {
+    return status === 429 || status >= 500;
+  }
+
+  const text = collectFailureText(error);
+  return TRANSIENT_NETWORK_CODES.some((code) => text.includes(code)) || /fetch failed/i.test(text);
+}
+
+function defaultSleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function retryTusUpload(operation, { sleep = defaultSleep, log = console.warn } = {}) {
+  let lastError;
+  for (let attempt = 1; attempt <= TUS_UPLOAD_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      const reason = formatTusRetryReason(error);
+      const retryable = isRetryableTusFailure(error);
+      const delay = TUS_UPLOAD_BACKOFF_MS[attempt - 1];
+      if (!retryable || attempt === TUS_UPLOAD_MAX_ATTEMPTS || delay == null) {
+        log(`TUS upload attempt ${attempt}/${TUS_UPLOAD_MAX_ATTEMPTS} failed (${reason}); not retrying`);
+        throw error;
+      }
+      log(`TUS upload attempt ${attempt}/${TUS_UPLOAD_MAX_ATTEMPTS} failed (${reason}); retrying in ${delay}ms`);
+      await sleep(delay);
+    }
+  }
+  throw lastError;
+}
+
 async function tusRequest(url, { authKey, restAuthKey, method, headers = {}, body }) {
   return fetchOrDiagnose(
     url,
@@ -295,7 +367,13 @@ async function tusRequest(url, { authKey, restAuthKey, method, headers = {}, bod
   );
 }
 
-async function uploadArchiveWithTus(archivePath, { url, authKey, restAuthKey }) {
+function throwTusHttpError(kind, status, text) {
+  const error = new Error(`TUS ${kind} failed: ${summarizeApiError(status, text)}`);
+  error.status = status;
+  throw error;
+}
+
+async function uploadArchiveWithTusOnce(archivePath, { url, authKey, restAuthKey }) {
   const archiveName = path.basename(archivePath);
   const size = statSync(archivePath).size;
   const target = tusUploadUrl(url, archiveName);
@@ -311,7 +389,7 @@ async function uploadArchiveWithTus(archivePath, { url, authKey, restAuthKey }) 
     },
   });
   if (![200, 201].includes(created.status)) {
-    throw new Error(`TUS create failed: ${summarizeApiError(created.status, await created.text())}`);
+    throwTusHttpError("create", created.status, await created.text());
   }
 
   const patched = await tusRequest(target, {
@@ -325,10 +403,14 @@ async function uploadArchiveWithTus(archivePath, { url, authKey, restAuthKey }) 
     body: bytes,
   });
   if (![200, 204].includes(patched.status)) {
-    throw new Error(`TUS upload failed: ${summarizeApiError(patched.status, await patched.text())}`);
+    throwTusHttpError("upload", patched.status, await patched.text());
   }
 
   return archiveName;
+}
+
+async function uploadArchiveWithTus(archivePath, credentials) {
+  return retryTusUpload(() => uploadArchiveWithTusOnce(archivePath, credentials));
 }
 
 export async function deployFromEnv(env = process.env) {
