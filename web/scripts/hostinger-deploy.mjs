@@ -115,6 +115,65 @@ export function redactSecrets(text) {
     .replace(/\b(?:password|passwd|pwd)\s*[=:]\s*\S+/gi, "password=***");
 }
 
+const FETCH_CAUSE_KEYS = ["code", "errno", "syscall", "hostname", "address", "port"];
+
+export function safeRequestHostname(urlLike) {
+  try {
+    return new URL(String(urlLike)).hostname || "unknown-host";
+  } catch {
+    return "unknown-host";
+  }
+}
+
+export function stripRequestUrls(text) {
+  return String(text ?? "").replace(/https?:\/\/[^\s"'`]+/gi, (match) => safeRequestHostname(match));
+}
+
+export function extractFetchCauseFields(error) {
+  const cause = error && typeof error === "object" ? error.cause : undefined;
+  if (!cause || typeof cause !== "object") return {};
+  const fields = {};
+  for (const key of FETCH_CAUSE_KEYS) {
+    if (cause[key] != null && cause[key] !== "") {
+      fields[key] = cause[key];
+    }
+  }
+  return fields;
+}
+
+export function formatFetchFailure({ operation, method, url, error }) {
+  const err = error && typeof error === "object" ? error : { message: String(error) };
+  const name = err.name || "Error";
+  const message = stripRequestUrls(err.message != null ? String(err.message) : String(error));
+  const cause = extractFetchCauseFields(err);
+  const lines = [
+    `${operation} failed: ${name}: ${message}`,
+    `method: ${method || "GET"}`,
+    `hostname: ${safeRequestHostname(url)}`,
+  ];
+  for (const key of FETCH_CAUSE_KEYS) {
+    if (cause[key] != null) {
+      lines.push(`${key}: ${cause[key]}`);
+    }
+  }
+  return redactSecrets(lines.join("\n"));
+}
+
+async function fetchOrDiagnose(url, init, operation) {
+  try {
+    return await fetch(url, init);
+  } catch (error) {
+    throw new Error(
+      formatFetchFailure({
+        operation,
+        method: init?.method || "GET",
+        url,
+        error,
+      }),
+    );
+  }
+}
+
 export function extractBuildFailureFields(details) {
   const resource = unwrapResource(details) || {};
   const fields = {};
@@ -208,24 +267,32 @@ async function hostingerApi(token, pathname, init = {}) {
   if (init.body && !headers["Content-Type"]) {
     headers["Content-Type"] = "application/json";
   }
-  return fetch(`${HOSTINGER_API_BASE}${pathname}`, {
-    ...init,
-    headers,
-  });
+  return fetchOrDiagnose(
+    `${HOSTINGER_API_BASE}${pathname}`,
+    {
+      ...init,
+      headers,
+    },
+    `Hostinger API ${init.method || "GET"} ${pathname}`,
+  );
 }
 
 async function tusRequest(url, { authKey, restAuthKey, method, headers = {}, body }) {
-  return fetch(url, {
-    method,
-    headers: {
-      "X-Auth": authKey,
-      "X-Auth-Rest": restAuthKey,
-      "Tus-Resumable": "1.0.0",
-      "User-Agent": "spl-homes-hostinger-deploy/1.0",
-      ...headers,
+  return fetchOrDiagnose(
+    url,
+    {
+      method,
+      headers: {
+        "X-Auth": authKey,
+        "X-Auth-Rest": restAuthKey,
+        "Tus-Resumable": "1.0.0",
+        "User-Agent": "spl-homes-hostinger-deploy/1.0",
+        ...headers,
+      },
+      body,
     },
-    body,
-  });
+    `TUS ${method}`,
+  );
 }
 
 async function uploadArchiveWithTus(archivePath, { url, authKey, restAuthKey }) {

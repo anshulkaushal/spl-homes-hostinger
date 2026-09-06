@@ -5,11 +5,14 @@ import {
   HOSTINGER_UPLOAD_URLS_PATH,
   buildStartBuildRequest,
   extractBuildUuid,
+  extractFetchCauseFields,
   formatBuildFailureReport,
+  formatFetchFailure,
   looksLikeHtmlChallenge,
   nodejsBuildsPath,
   parseUploadUrlResource,
   redactSecrets,
+  safeRequestHostname,
   summarizeApiError,
   tusUploadUrl,
 } from "../../scripts/hostinger-deploy.mjs";
@@ -108,5 +111,65 @@ describe("Hostinger archive deploy API helpers", () => {
     assert.doesNotMatch(report, /tus-secret/);
     assert.doesNotMatch(report, /mysql:\/\/user:secret@db\/app/);
     assert.match(redactSecrets("password=hunter2"), /password=\*\*\*/);
+  });
+
+  it("reports safe fetch/network diagnostics without secrets or signed URLs", () => {
+    const signedUrl =
+      "https://tus.hostinger.example/files/spl-homes-web.zip?override=true&signature=super-signed-secret";
+    const error = new TypeError(`fetch failed for ${signedUrl} with X-Auth: tus-header-secret`);
+    error.cause = {
+      name: "Error",
+      message: "connect ECONNRESET",
+      code: "ECONNRESET",
+      errno: -4077,
+      syscall: "connect",
+      hostname: "tus.hostinger.example",
+      address: "203.0.113.10",
+      port: 443,
+      extra: "should-not-appear",
+    };
+
+    const report = formatFetchFailure({
+      operation: "TUS POST",
+      method: "POST",
+      url: signedUrl,
+      error,
+    });
+
+    assert.match(report, /TUS POST failed: TypeError: fetch failed/);
+    assert.match(report, /method: POST/);
+    assert.match(report, /hostname: tus\.hostinger\.example/);
+    assert.match(report, /code: ECONNRESET/);
+    assert.match(report, /errno: -4077/);
+    assert.match(report, /syscall: connect/);
+    assert.match(report, /address: 203\.0\.113\.10/);
+    assert.match(report, /port: 443/);
+    assert.deepEqual(extractFetchCauseFields(error), {
+      code: "ECONNRESET",
+      errno: -4077,
+      syscall: "connect",
+      hostname: "tus.hostinger.example",
+      address: "203.0.113.10",
+      port: 443,
+    });
+    assert.equal(safeRequestHostname(signedUrl), "tus.hostinger.example");
+    assert.doesNotMatch(report, /super-signed-secret/);
+    assert.doesNotMatch(report, /tus-header-secret/);
+    assert.doesNotMatch(report, /override=true/);
+    assert.doesNotMatch(report, /https:\/\/tus\.hostinger\.example/);
+    assert.doesNotMatch(report, /should-not-appear/);
+    assert.doesNotMatch(
+      formatFetchFailure({
+        operation: "Hostinger API POST",
+        method: "POST",
+        url: "https://developers.hostinger.com/api/hosting/v1/files/upload-urls",
+        error: {
+          name: "TypeError",
+          message: "fetch failed HOSTINGER_API_TOKEN=abc Authorization: Bearer leaked-token DATABASE_URL=mysql://user:secret@db/app",
+          cause: { code: "ENOTFOUND", hostname: "developers.hostinger.com" },
+        },
+      }),
+      /leaked-token|abc|mysql:\/\/user:secret@db\/app/,
+    );
   });
 });
