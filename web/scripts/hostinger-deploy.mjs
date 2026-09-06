@@ -103,6 +103,75 @@ export function extractBuildState(payload) {
   return resource?.state || resource?.status || payload?.state || payload?.status;
 }
 
+export function redactSecrets(text) {
+  return String(text ?? "")
+    .replace(/\bDATABASE_URL\s*[=:]\s*\S+/gi, "DATABASE_URL=***")
+    .replace(/\bHOSTINGER_API_TOKEN\s*[=:]\s*\S+/gi, "HOSTINGER_API_TOKEN=***")
+    .replace(/\b(?:mysql|mariadb|postgres|postgresql|mongodb(?:\+srv)?):\/\/[^\s"'`]+/gi, "***REDACTED_DB_URL***")
+    .replace(/\bAuthorization\s*:\s*Bearer\s+\S+/gi, "Authorization: Bearer ***")
+    .replace(/\bBearer\s+[A-Za-z0-9._\-+/=]{12,}/g, "Bearer ***")
+    .replace(/\bX-Auth(?:-Rest)?\s*:\s*\S+/gi, (match) => `${match.split(":")[0]}: ***`)
+    .replace(/\b(?:auth_key|rest_auth_key|authKey|restAuthKey)\s*[=:]\s*\S+/gi, (match) => `${match.split(/[=:]/)[0]}=***`)
+    .replace(/\b(?:password|passwd|pwd)\s*[=:]\s*\S+/gi, "password=***");
+}
+
+export function extractBuildFailureFields(details) {
+  const resource = unwrapResource(details) || {};
+  const fields = {};
+  for (const key of [
+    "state",
+    "status",
+    "error",
+    "message",
+    "exit_code",
+    "exitCode",
+    "failure_reason",
+    "failureReason",
+    "error_message",
+    "errorMessage",
+  ]) {
+    if (resource[key] != null && resource[key] !== "") {
+      fields[key] = resource[key];
+    }
+  }
+  return fields;
+}
+
+export function extractBuildLogText(logsPayloadOrText) {
+  if (logsPayloadOrText && typeof logsPayloadOrText === "object") {
+    const resource = unwrapResource(logsPayloadOrText);
+    if (typeof resource?.logs === "string") return resource.logs;
+    if (typeof resource?.log === "string") return resource.log;
+    if (typeof resource?.output === "string") return resource.output;
+    return JSON.stringify(logsPayloadOrText, null, 2);
+  }
+
+  const text = String(logsPayloadOrText ?? "");
+  try {
+    return extractBuildLogText(JSON.parse(text));
+  } catch {
+    return text;
+  }
+}
+
+export function formatBuildFailureReport({ details, logsText, logsStatus }) {
+  const fields = extractBuildFailureFields(details);
+  const fieldLines = Object.entries(fields).map(([key, value]) => {
+    const printed = typeof value === "object" ? JSON.stringify(value) : String(value);
+    return `${key}: ${redactSecrets(printed)}`;
+  });
+  return [
+    "Hostinger Node.js build failed",
+    logsStatus != null ? `logs HTTP status: ${logsStatus}` : null,
+    ...fieldLines,
+    "----- Hostinger build log start -----",
+    redactSecrets(extractBuildLogText(logsText)),
+    "----- Hostinger build log end -----",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 async function readResponseText(response) {
   return response.text();
 }
@@ -265,7 +334,13 @@ export async function deployFromEnv(env = process.env) {
     if (state === "failed" || state === "error") {
       const logsResponse = await hostingerApi(token, nodejsBuildLogsPath(username, domain, uuid));
       const logs = await readResponseText(logsResponse);
-      throw new Error(`Hostinger build failed: ${summarizeApiError(logsResponse.status, logs)}`);
+      const report = formatBuildFailureReport({
+        details,
+        logsText: logs,
+        logsStatus: logsResponse.status,
+      });
+      console.error(report);
+      throw new Error(report);
     }
   }
 

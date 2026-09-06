@@ -5,9 +5,11 @@ import {
   HOSTINGER_UPLOAD_URLS_PATH,
   buildStartBuildRequest,
   extractBuildUuid,
+  formatBuildFailureReport,
   looksLikeHtmlChallenge,
   nodejsBuildsPath,
   parseUploadUrlResource,
+  redactSecrets,
   summarizeApiError,
   tusUploadUrl,
 } from "../../scripts/hostinger-deploy.mjs";
@@ -80,5 +82,31 @@ describe("Hostinger archive deploy API helpers", () => {
       /HTML\/Cloudflare challenge/,
     );
     assert.equal(looksLikeHtmlChallenge('{"url":"https://files.example/tus"}'), false);
+  });
+
+  it("prints the complete redacted Hostinger build log and failure fields", () => {
+    const longLog = `${"npm install output ".repeat(40)}migrate:deploy failed after DATABASE_URL=mysql://user:secret@db/app`;
+    const report = formatBuildFailureReport({
+      details: {
+        state: "failed",
+        error: "Build failed",
+        exit_code: 1,
+        message: "Command failed: npm run build:hostinger",
+      },
+      logsText: JSON.stringify({
+        logs: `${longLog}\nAuthorization: Bearer super-secret-token-value\nauth_key=tus-secret`,
+      }),
+      logsStatus: 200,
+    });
+
+    assert.match(report, /state: failed/);
+    assert.match(report, /exit_code: 1/);
+    assert.match(report, /Command failed: npm run build:hostinger/);
+    assert.ok(report.includes(longLog.replace("DATABASE_URL=mysql://user:secret@db/app", "DATABASE_URL=***")));
+    assert.ok(report.length > 500);
+    assert.doesNotMatch(report, /super-secret-token-value/);
+    assert.doesNotMatch(report, /tus-secret/);
+    assert.doesNotMatch(report, /mysql:\/\/user:secret@db\/app/);
+    assert.match(redactSecrets("password=hunter2"), /password=\*\*\*/);
   });
 });
