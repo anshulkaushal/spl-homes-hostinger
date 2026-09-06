@@ -18,4 +18,4 @@ Copy `.env.example` to `.env.local`. Set `ADMIN_PASSWORD` to review enquiries at
 
 Without a local MySQL server, leave `USE_MYSQL=false`. Leads write to `data/leads.json`.
 
-Do not deploy this over the live production website. Staging first. Production cutover requires explicit approval.
+Production is `https://spl-homes.com`. Deploy it only through the protected `deploy-production.yml` workflow. Staging stays on the existing staging Hostinger app.

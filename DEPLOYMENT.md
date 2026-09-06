@@ -6,7 +6,7 @@
 **Control plane:** GitHub Actions  
 **Hostinger build plane:** official Hostinger Hosting API
 
-This is the deployment contract. Production cutover still requires a human go-ahead. Do not change DNS or replace the live brochure from these workflows until that approval exists.
+This is the deployment contract. Production is live at `https://spl-homes.com`. Do not change DNS or Hostinger database settings from these workflows.
 
 ---
 
@@ -38,7 +38,7 @@ The official path for external CI/CD is **archive + Hostinger Node.js build API*
 3. Actions calls Hostinger’s documented API:
    - Preferred: `POST /api/hosting/v1/accounts/{username}/websites/{domain}/nodejs/builds/from-archive`
    - Fallback (also official): generate an upload URL, `PUT` the archive, then `POST .../nodejs/builds` with `source_type: archive`
-4. Hostinger installs dependencies, runs `npm run build`, and starts `npm start` on Node 22.
+4. Hostinger installs dependencies, runs `npm run build:hostinger` (`prisma generate`, guarded `migrate:deploy`, `next build`), and starts `npm start` on Node 22.
 5. Actions polls build state. Failure fails the workflow.
 6. Actions runs smoke tests against the deployed URL. Failure fails the workflow.
 
@@ -103,10 +103,10 @@ Create these in the GitHub repo: **Settings → Environments**.
 | --- | --- |
 | `HOSTINGER_API_TOKEN` | Production-capable token (or the same token with website scope) |
 | `HOSTINGER_USERNAME` | Hosting account username |
-| `HOSTINGER_DOMAIN` | Production Node app hostname — **not** until cutover is approved |
-| `PRODUCTION_URL` | `https://splhomes.co.nz` when that app exists |
+| `HOSTINGER_DOMAIN` | Production Node app hostname (`spl-homes.com`) |
+| `PRODUCTION_URL` | `https://spl-homes.com` |
 
-Do not put the live brochure domain here while the old site is still the public site.
+Do **not** store `DATABASE_URL` or MySQL passwords in GitHub Environments. Production and staging MySQL credentials live only in the Hostinger Web App environment. A GitHub `DATABASE_URL` secret is unused by these workflows and should be removed if one still exists.
 
 Never store database passwords, analytics IDs, or SMTP credentials in the workflow files. Those belong in **Hostinger Web App environment variables**, not in GitHub, except the API token needed to trigger a build.
 
@@ -121,12 +121,22 @@ Create a **new** Node.js web app for staging. Do not attach it to the current li
 | Framework | Next.js |
 | Node.js | **22** |
 | Application directory | contents of `web/` (archive root = `package.json`) |
-| Build command | `npm run build` (`prisma generate && next build`) |
+| Build command | `npm run build:hostinger` (`prisma generate && npm run migrate:deploy && next build`) |
 | Start command | `npm start` (`next start`) |
 | Output directory | `.next` |
 | Package manager | npm |
 
 Hostinger sets `PORT`. `next start` reads it.
+
+### MySQL hosts
+
+| Client | Host | Notes |
+| --- | --- | --- |
+| Hostinger production Web App (build and runtime) | `localhost:3306` | Confirmed working. Database/user `u182465577_splhomes_prod`. Do not switch this to the public hostname. |
+| External tools (MySQL Workbench) | `srv1518.hstgr.io:3306` | Remote MySQL only. Not used by the production app. |
+| Hostinger staging Web App | keep the existing working `DATABASE_URL` | Do not change staging to match production. |
+
+`DATABASE_URL` is set in the Hostinger Web App environment. Workflows never pass a real production database URL.
 
 ### Hostinger environment variables (staging)
 
@@ -135,7 +145,7 @@ APP_ENV=staging
 SITE_URL=https://staging.splhomes.co.nz
 NOINDEX=true
 USE_MYSQL=true
-DATABASE_URL=mysql://USER:PASSWORD@MYSQL_HOSTNAME:3306/STAGING_DB
+DATABASE_URL=<existing working staging URL — do not change for consistency>
 ADMIN_PASSWORD=...
 NEXT_PUBLIC_PHONE=
 NEXT_PUBLIC_EMAIL=
@@ -145,21 +155,22 @@ NEXT_PUBLIC_GTM_ID=
 NEXT_PUBLIC_META_PIXEL_ID=
 ```
 
-`DATABASE_URL` must use the Remote MySQL hostname, not `localhost`.
-
-### Hostinger environment variables (production — later only)
+### Hostinger environment variables (production)
 
 ```
 APP_ENV=production
-SITE_URL=https://splhomes.co.nz
+SITE_URL=https://spl-homes.com
 NOINDEX=false
 USE_MYSQL=true
-DATABASE_URL=mysql://...production...
+DATABASE_URL=mysql://USER:PASSWORD@localhost:3306/u182465577_splhomes_prod
 ```
 
-Plus real NAP and tracking IDs when supplied.
+Replace `USER` and `PASSWORD` in the Hostinger panel only. Never commit the real URL or password.
 
-Prisma: run `npx prisma migrate deploy` against **staging** MySQL from a trusted machine before the first staging deploy that needs tables. Do not migrate production until cutover.
+Guarded `prisma migrate deploy` runs on Hostinger during `build:hostinger`. Do not migrate other Hostinger databases from these scripts.
+
+**Keep:** `u182465577_splhomes_prod` — live production database.  
+**Do not use:** older names such as `u182465577_prod_splhomes` or `u182465577_prod_splhomes2`.
 
 ---
 
@@ -187,7 +198,7 @@ Prisma: run `npx prisma migrate deploy` against **staging** MySQL from a trusted
 6. Hostinger builds the production Node app.
 7. Smoke tests run. On failure the workflow is **failed** — it does not continue.
 
-Until cutover is approved, do not create or attach a production Node app to `splhomes.co.nz`.
+Production deploys the Node app already serving `https://spl-homes.com`. Do not point `HOSTINGER_DOMAIN` at a different website.
 
 ---
 

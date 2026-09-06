@@ -2,7 +2,8 @@
 
 The product is the Next.js site in [`web`](./web).
 
-Node.js 22 · Hostinger Business Node.js · Hostinger MySQL.
+Production: `https://spl-homes.com`  
+Node.js 22 · Hostinger Business Node.js · Hostinger MySQL (`u182465577_splhomes_prod` on `localhost` in the production Web App).
 
 ```bash
 cd web

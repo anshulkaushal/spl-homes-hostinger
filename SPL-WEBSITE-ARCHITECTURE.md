@@ -215,8 +215,8 @@ Current photography is Unsplash **placeholder** imagery. Replace with SPL Homes 
 | Environment | Persistence |
 | --- | --- |
 | Local | `USE_MYSQL=false` → `web/data/leads.json`. Dummy `DATABASE_URL` is enough for `prisma generate`. Optional: local MySQL + `USE_MYSQL=true` + `npx prisma migrate deploy` |
-| Staging | Dedicated Hostinger MySQL. `USE_MYSQL=true`. `prisma migrate deploy` during Hostinger build |
-| Production | Separate MySQL later. Do not migrate or write production yet |
+| Staging | Dedicated Hostinger MySQL. `USE_MYSQL=true`. `prisma migrate deploy` during Hostinger build. Keep the existing staging `DATABASE_URL`. |
+| Production | Hostinger MySQL `u182465577_splhomes_prod` via `localhost:3306` in the Web App env. Guarded `prisma migrate deploy` during `build:hostinger`. |
 
 Setup:
 
@@ -225,7 +225,7 @@ Setup:
 3. `cd web && npm install && npm run dev`  
 4. When MySQL is ready: set `DATABASE_URL` and `USE_MYSQL=true`, then `npx prisma migrate deploy`
 
-Never point local or staging at a production database. Never run migrate against production in this programme.
+Never point local or staging at a production database. Production migrations run only on the Hostinger production app through the guarded `migrate:deploy` path. The live production database is `u182465577_splhomes_prod`. External tools may use `srv1518.hstgr.io`; the production Web App must keep `localhost`.
 
 ---
 
@@ -246,12 +246,13 @@ Never point local or staging at a production database. Never run migrate against
 | | Local | Staging | Production |
 | --- | --- | --- | --- |
 | `APP_ENV` | local | staging | production |
-| Indexing | noindex | Disallow `/` + `X-Robots-Tag` | index when approved |
-| URL | localhost:3000 | staging host | splhomes.co.nz later |
+| Indexing | noindex | Disallow `/` + `X-Robots-Tag` | indexable |
+| URL | localhost:3000 | staging host | `https://spl-homes.com` |
 | Analytics | off | off | on when IDs set |
-| Deploy | local only | GitHub Actions → Hostinger | manual workflow later |
+| Database | file or local MySQL | existing staging MySQL | `u182465577_splhomes_prod` @ `localhost` |
+| Deploy | local only | GitHub Actions → Hostinger | manual `deploy-production.yml` only |
 
-GitHub Actions is the only release trigger. Hostinger builds and runs Next.js. Do not deploy production, change DNS, or overwrite the live brochure.
+GitHub Actions is the only release trigger. Hostinger builds and runs Next.js. Do not change DNS or the working production `DATABASE_URL` from these workflows.
 
 ---
 

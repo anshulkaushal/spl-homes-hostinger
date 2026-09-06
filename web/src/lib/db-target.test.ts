@@ -7,7 +7,8 @@ import {
 } from "../../scripts/db-target.mjs";
 
 const SPL_STAGING = "u182465577_stg_splhomes";
-const SPL_PRODUCTION = "u182465577_prod_splhomes";
+const SPL_PRODUCTION = "u182465577_splhomes_prod";
+const SPL_PRODUCTION_LEGACY = "u182465577_prod_splhomes";
 const ARO_STAGING = "u182465577_stg_aroaash";
 const VENDING = "u182465577_vending_machine";
 
@@ -29,6 +30,7 @@ describe("SPL Homes database target guards", () => {
 
   it("accepts the SPL Homes production database in production", () => {
     assert.deepEqual(assertDatabaseTargetForEnv("production", SPL_PRODUCTION), { ok: true });
+    assert.deepEqual(assertDatabaseTargetForEnv("production", SPL_PRODUCTION_LEGACY), { ok: true });
     assert.deepEqual(assertSplHomesProductionDatabaseTarget("splhomes_prod"), { ok: true });
     assert.deepEqual(assertSplHomesProductionDatabaseTarget("splhomes_production"), { ok: true });
   });
