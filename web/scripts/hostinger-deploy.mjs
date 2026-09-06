@@ -1,149 +1,286 @@
 import { readFileSync, statSync } from "node:fs";
-import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const token = process.env.HOSTINGER_API_TOKEN;
-const username = process.env.HOSTINGER_USERNAME;
-const domain = process.env.HOSTINGER_DOMAIN;
-const archivePath = process.env.HOSTINGER_ARCHIVE;
-const nodeVersion = process.env.HOSTINGER_NODE_VERSION || "22";
-const buildScript = process.env.HOSTINGER_BUILD_SCRIPT || "build";
-const appType = process.env.HOSTINGER_APP_TYPE || "next";
-const packageManager = process.env.HOSTINGER_PACKAGE_MANAGER || "npm";
-const outputDirectory = process.env.HOSTINGER_OUTPUT_DIRECTORY || ".next";
-const rootDirectory = process.env.HOSTINGER_ROOT_DIRECTORY || "";
+export const HOSTINGER_API_BASE = "https://developers.hostinger.com";
+export const HOSTINGER_UPLOAD_URLS_PATH = "/api/hosting/v1/files/upload-urls";
 
-if (!token || !username || !domain || !archivePath) {
-  console.error("HOSTINGER_API_TOKEN, HOSTINGER_USERNAME, HOSTINGER_DOMAIN and HOSTINGER_ARCHIVE are required");
-  process.exit(1);
+export function nodejsBuildsPath(username, domain) {
+  return `/api/hosting/v1/accounts/${encodeURIComponent(username)}/websites/${encodeURIComponent(domain)}/nodejs/builds`;
 }
 
-const api = (pathname, init = {}) =>
-  fetch(`https://developers.hostinger.com${pathname}`, {
+export function nodejsBuildDetailsPath(username, domain, uuid) {
+  return `${nodejsBuildsPath(username, domain)}/${encodeURIComponent(uuid)}`;
+}
+
+export function nodejsBuildLogsPath(username, domain, uuid) {
+  return `${nodejsBuildDetailsPath(username, domain, uuid)}/logs`;
+}
+
+export function looksLikeHtmlChallenge(text) {
+  const sample = String(text || "").slice(0, 2000);
+  return (
+    /<!DOCTYPE html/i.test(sample) ||
+    /<html[\s>]/i.test(sample) ||
+    /Just a moment/i.test(sample) ||
+    /cf-browser-verification/i.test(sample)
+  );
+}
+
+export function summarizeApiError(status, text) {
+  if (looksLikeHtmlChallenge(text)) {
+    return `${status} Hostinger API returned an HTML/Cloudflare challenge instead of JSON. Use ${HOSTINGER_API_BASE} with Accept: application/json.`;
+  }
+  return `${status} ${String(text || "").replace(/\s+/g, " ").trim().slice(0, 500)}`;
+}
+
+export function unwrapResource(payload) {
+  if (payload && typeof payload === "object" && payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)) {
+    return payload.data;
+  }
+  return payload;
+}
+
+export function parseUploadUrlResource(payload) {
+  const resource = unwrapResource(payload);
+  const url = resource?.url;
+  const authKey = resource?.auth_key || resource?.authKey;
+  const restAuthKey = resource?.rest_auth_key || resource?.restAuthKey;
+  if (!url || !authKey || !restAuthKey) {
+    throw new Error("Upload URL response did not include url, auth_key and rest_auth_key");
+  }
+  return { url, authKey, restAuthKey };
+}
+
+export function tusUploadUrl(baseUrl, relativeFilePath) {
+  const trimmed = String(baseUrl).replace(/\/+$/, "");
+  const encodedPath = String(relativeFilePath)
+    .replace(/^\/+/, "")
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  return `${trimmed}/${encodedPath}?override=true`;
+}
+
+export function parseNodeVersion(value) {
+  const version = Number.parseInt(String(value), 10);
+  if (![18, 20, 22, 24].includes(version)) {
+    throw new Error(`Unsupported HOSTINGER_NODE_VERSION: ${value}`);
+  }
+  return version;
+}
+
+export function buildStartBuildRequest({
+  archivePath,
+  nodeVersion,
+  buildScript,
+  appType,
+  packageManager,
+  outputDirectory,
+  rootDirectory,
+}) {
+  return {
+    node_version: parseNodeVersion(nodeVersion),
+    app_type: appType,
+    root_directory: rootDirectory || ".",
+    output_directory: outputDirectory,
+    build_script: buildScript,
+    package_manager: packageManager,
+    source_type: "archive",
+    source_options: {
+      archive_path: path.basename(archivePath),
+    },
+  };
+}
+
+export function extractBuildUuid(payload) {
+  const resource = unwrapResource(payload);
+  return resource?.uuid || resource?.id || payload?.uuid || payload?.id;
+}
+
+export function extractBuildState(payload) {
+  const resource = unwrapResource(payload);
+  return resource?.state || resource?.status || payload?.state || payload?.status;
+}
+
+async function readResponseText(response) {
+  return response.text();
+}
+
+async function parseJsonResponse(response, label) {
+  const text = await readResponseText(response);
+  if (looksLikeHtmlChallenge(text)) {
+    throw new Error(`${label} failed: ${summarizeApiError(response.status, text)}`);
+  }
+  if (!response.ok) {
+    throw new Error(`${label} failed: ${summarizeApiError(response.status, text)}`);
+  }
+  if (!text.trim()) {
+    throw new Error(`${label} returned an empty response`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`${label} returned non-JSON: ${text.replace(/\s+/g, " ").trim().slice(0, 300)}`);
+  }
+}
+
+function apiHeaders(token, extra = {}) {
+  return {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/json",
+    "User-Agent": "spl-homes-hostinger-deploy/1.0",
+    ...extra,
+  };
+}
+
+async function hostingerApi(token, pathname, init = {}) {
+  const headers = apiHeaders(token, init.headers || {});
+  if (init.body && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
+  return fetch(`${HOSTINGER_API_BASE}${pathname}`, {
     ...init,
+    headers,
+  });
+}
+
+async function tusRequest(url, { authKey, restAuthKey, method, headers = {}, body }) {
+  return fetch(url, {
+    method,
     headers: {
-      Authorization: `Bearer ${token}`,
-      ...(init.headers || {}),
+      "X-Auth": authKey,
+      "X-Auth-Rest": restAuthKey,
+      "Tus-Resumable": "1.0.0",
+      "User-Agent": "spl-homes-hostinger-deploy/1.0",
+      ...headers,
+    },
+    body,
+  });
+}
+
+async function uploadArchiveWithTus(archivePath, { url, authKey, restAuthKey }) {
+  const archiveName = path.basename(archivePath);
+  const size = statSync(archivePath).size;
+  const target = tusUploadUrl(url, archiveName);
+  const bytes = readFileSync(archivePath);
+
+  const created = await tusRequest(target, {
+    authKey,
+    restAuthKey,
+    method: "POST",
+    headers: {
+      "Upload-Length": String(size),
+      "Upload-Offset": "0",
     },
   });
+  if (![200, 201].includes(created.status)) {
+    throw new Error(`TUS create failed: ${summarizeApiError(created.status, await created.text())}`);
+  }
 
-const archiveName = path.basename(archivePath);
-const size = statSync(archivePath).size;
-if (size > 50 * 1024 * 1024) {
-  console.error(`Archive is ${size} bytes; Hostinger limit is 50MB`);
-  process.exit(1);
-}
-
-const form = new FormData();
-form.set(
-  "archive",
-  new Blob([readFileSync(archivePath)], { type: "application/zip" }),
-  archiveName,
-);
-form.set("node_version", nodeVersion);
-form.set("build_script", buildScript);
-form.set("app_type", appType);
-form.set("package_manager", packageManager);
-form.set("output_directory", outputDirectory);
-if (rootDirectory) form.set("root_directory", rootDirectory);
-
-console.log(`Uploading ${archiveName} (${size} bytes) to ${domain}`);
-
-const create = await api(
-  `/api/hosting/v1/accounts/${encodeURIComponent(username)}/websites/${encodeURIComponent(domain)}/nodejs/builds/from-archive`,
-  { method: "POST", body: form },
-);
-
-if (!create.ok) {
-  console.error(`from-archive failed (${create.status}). Falling back to upload URL + start build.`);
-  console.error(await create.text());
-
-  const upload = await api(
-    `/api/hosting/v1/accounts/${encodeURIComponent(username)}/websites/${encodeURIComponent(domain)}/files/upload`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filename: archiveName }),
+  const patched = await tusRequest(target, {
+    authKey,
+    restAuthKey,
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/offset+octet-stream",
+      "Upload-Offset": "0",
     },
-  );
-
-  if (!upload.ok) {
-    console.error(`Generate upload URL failed: ${upload.status} ${await upload.text()}`);
-    console.error("Use the official Hostinger API token and confirm the Node.js website already exists.");
-    process.exit(1);
-  }
-
-  const uploadPayload = await upload.json();
-  const putUrl = uploadPayload.url || uploadPayload.data?.url;
-  if (!putUrl) {
-    console.error("Upload URL response did not include a URL", uploadPayload);
-    process.exit(1);
-  }
-
-  const put = spawnSync("curl", ["-sS", "-X", "PUT", "-H", `Authorization: Bearer ${token}`, "--data-binary", `@${archivePath}`, putUrl], {
-    encoding: "utf8",
+    body: bytes,
   });
-  if (put.status !== 0) {
-    console.error(put.stderr || put.stdout);
-    process.exit(1);
+  if (![200, 204].includes(patched.status)) {
+    throw new Error(`TUS upload failed: ${summarizeApiError(patched.status, await patched.text())}`);
   }
 
-  const start = await api(
-    `/api/hosting/v1/accounts/${encodeURIComponent(username)}/websites/${encodeURIComponent(domain)}/nodejs/builds`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        source_type: "archive",
-        source_options: { archive_path: archiveName },
-        node_version: nodeVersion,
-        build_script: buildScript,
-        app_type: appType,
-        package_manager: packageManager,
-        output_directory: outputDirectory,
-        root_directory: rootDirectory || ".",
-      }),
-    },
-  );
-
-  if (!start.ok) {
-    console.error(`Start build failed: ${start.status} ${await start.text()}`);
-    process.exit(1);
-  }
-
-  var build = await start.json();
-} else {
-  var build = await create.json();
+  return archiveName;
 }
 
-const uuid = build.uuid || build.data?.uuid || build.id;
-if (!uuid) {
-  console.error("Hostinger did not return a build UUID", build);
-  process.exit(1);
+export async function deployFromEnv(env = process.env) {
+  const token = env.HOSTINGER_API_TOKEN;
+  const username = env.HOSTINGER_USERNAME;
+  const domain = env.HOSTINGER_DOMAIN;
+  const archivePath = env.HOSTINGER_ARCHIVE;
+  const nodeVersion = env.HOSTINGER_NODE_VERSION || "22";
+  const buildScript = env.HOSTINGER_BUILD_SCRIPT || "build";
+  const appType = env.HOSTINGER_APP_TYPE || "next";
+  const packageManager = env.HOSTINGER_PACKAGE_MANAGER || "npm";
+  const outputDirectory = env.HOSTINGER_OUTPUT_DIRECTORY || ".next";
+  const rootDirectory = env.HOSTINGER_ROOT_DIRECTORY || ".";
+
+  if (!token || !username || !domain || !archivePath) {
+    throw new Error("HOSTINGER_API_TOKEN, HOSTINGER_USERNAME, HOSTINGER_DOMAIN and HOSTINGER_ARCHIVE are required");
+  }
+
+  const size = statSync(archivePath).size;
+  if (size > 50 * 1024 * 1024) {
+    throw new Error(`Archive is ${size} bytes; Hostinger limit is 50MB`);
+  }
+
+  const archiveName = path.basename(archivePath);
+  console.log(`Requesting Hostinger TUS upload URL for ${archiveName} (${size} bytes)`);
+
+  const uploadResponse = await hostingerApi(token, HOSTINGER_UPLOAD_URLS_PATH, {
+    method: "POST",
+    body: JSON.stringify({ username, domain }),
+  });
+  const uploadPayload = await parseJsonResponse(uploadResponse, "Generate upload URL");
+  const upload = parseUploadUrlResource(uploadPayload);
+
+  console.log(`Uploading ${archiveName} via TUS`);
+  await uploadArchiveWithTus(archivePath, upload);
+
+  const startBody = buildStartBuildRequest({
+    archivePath,
+    nodeVersion,
+    buildScript,
+    appType,
+    packageManager,
+    outputDirectory,
+    rootDirectory,
+  });
+  console.log(`Starting Hostinger Node.js build from archive ${startBody.source_options.archive_path}`);
+
+  const startResponse = await hostingerApi(token, nodejsBuildsPath(username, domain), {
+    method: "POST",
+    body: JSON.stringify(startBody),
+  });
+  const startPayload = await parseJsonResponse(startResponse, "Start Node.js build");
+  const uuid = extractBuildUuid(startPayload);
+  if (!uuid) {
+    throw new Error("Hostinger did not return a build UUID");
+  }
+
+  console.log(`Build started: ${uuid}`);
+
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 15000));
+    const detailsResponse = await hostingerApi(token, nodejsBuildDetailsPath(username, domain, uuid));
+    const details = await parseJsonResponse(detailsResponse, "Get Node.js build details");
+    const state = extractBuildState(details);
+    console.log(`Build state: ${state}`);
+    if (state === "completed" || state === "success") {
+      console.log("Hostinger build completed");
+      return;
+    }
+    if (state === "failed" || state === "error") {
+      const logsResponse = await hostingerApi(token, nodejsBuildLogsPath(username, domain, uuid));
+      const logs = await readResponseText(logsResponse);
+      throw new Error(`Hostinger build failed: ${summarizeApiError(logsResponse.status, logs)}`);
+    }
+  }
+
+  throw new Error("Timed out waiting for the Hostinger build");
 }
 
-console.log(`Build started: ${uuid}`);
+function isDirectRun() {
+  const invoked = process.argv[1] && path.resolve(process.argv[1]);
+  if (!invoked) return false;
+  return path.normalize(fileURLToPath(import.meta.url)).toLowerCase() === path.normalize(invoked).toLowerCase();
+}
 
-for (let attempt = 0; attempt < 60; attempt += 1) {
-  await new Promise((resolve) => setTimeout(resolve, 15000));
-  const details = await api(
-    `/api/hosting/v1/accounts/${encodeURIComponent(username)}/websites/${encodeURIComponent(domain)}/nodejs/builds/${encodeURIComponent(uuid)}`,
-  );
-  const body = await details.json();
-  const state = body.state || body.data?.state || body.status;
-  console.log(`Build state: ${state}`);
-  if (state === "completed" || state === "success") {
-    console.log("Hostinger build completed");
-    process.exit(0);
-  }
-  if (state === "failed" || state === "error") {
-    const logs = await api(
-      `/api/hosting/v1/accounts/${encodeURIComponent(username)}/websites/${encodeURIComponent(domain)}/nodejs/builds/${encodeURIComponent(uuid)}/logs`,
-    );
-    console.error(await logs.text());
+if (isDirectRun()) {
+  deployFromEnv().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
     process.exit(1);
-  }
+  });
 }
-
-console.error("Timed out waiting for the Hostinger build");
-process.exit(1);
