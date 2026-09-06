@@ -55,10 +55,12 @@ function runPrisma(args) {
   });
 }
 
-const status = runPrisma(["migrate", "status"]);
-if (status.status !== 0) {
-  process.exit(status.status ?? 1);
+// `prisma migrate status` exits non-zero when migrations are pending.
+// Deploy first so pending migrations are applied instead of aborting the build.
+const deploy = runPrisma(["migrate", "deploy"]);
+if (deploy.status !== 0) {
+  process.exit(deploy.status ?? 1);
 }
 
-const deploy = runPrisma(["migrate", "deploy"]);
-process.exit(deploy.status ?? 1);
+const status = runPrisma(["migrate", "status"]);
+process.exit(status.status ?? 1);
