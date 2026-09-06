@@ -68,7 +68,7 @@ jobs:
           HOSTINGER_DOMAIN: ${{ secrets.HOSTINGER_DOMAIN }}
           HOSTINGER_ARCHIVE: ${{ github.workspace }}/spl-homes-web.zip
           HOSTINGER_NODE_VERSION: "22"
-          HOSTINGER_BUILD_SCRIPT: build
+          HOSTINGER_BUILD_SCRIPT: build:hostinger
           HOSTINGER_APP_TYPE: next
           HOSTINGER_PACKAGE_MANAGER: npm
           HOSTINGER_OUTPUT_DIRECTORY: .next
