@@ -20,7 +20,6 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
-    const noindex = process.env.NOINDEX === "true" || process.env.APP_ENV === "staging";
     return [
       {
         source: "/:path*",
@@ -29,7 +28,6 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-          ...(noindex ? [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] : []),
         ],
       },
     ];

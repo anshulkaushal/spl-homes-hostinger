@@ -11,6 +11,7 @@ test("robots.txt is generated", async ({ request }) => {
   expect(response.ok()).toBeTruthy();
   const body = await response.text();
   expect(body).toMatch(/Disallow:\s*\//);
+  expect(response.headers()["x-robots-tag"]).toMatch(/noindex,\s*nofollow/i);
 });
 
 test("sitemap.xml includes core routes", async ({ request }) => {
