@@ -5,6 +5,10 @@ import { assertStagingDatabaseTarget } from "./db-target.mjs";
 const url = process.env.DATABASE_URL;
 
 if (!url) {
+  if (process.env.APP_ENV === "staging" || process.env.APP_ENV === "production") {
+    console.error("DATABASE_URL is required for migrate:deploy in staging/production.");
+    process.exit(1);
+  }
   console.log("Skipping Prisma migrate deploy: DATABASE_URL is not set.");
   process.exit(0);
 }

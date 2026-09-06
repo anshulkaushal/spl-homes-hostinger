@@ -60,16 +60,6 @@ jobs:
           path: spl-homes-web.zip
           retention-days: 90
 
-      - name: Install web dependencies
-        working-directory: web
-        run: npm ci
-
-      - name: Inspect and apply Prisma migrations
-        working-directory: web
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: node scripts/migrate-remote.mjs
-
       - name: Deploy via Hostinger Node.js API
         env:
           HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
@@ -77,7 +67,7 @@ jobs:
           HOSTINGER_DOMAIN: ${{ secrets.HOSTINGER_DOMAIN }}
           HOSTINGER_ARCHIVE: ${{ github.workspace }}/spl-homes-web.zip
           HOSTINGER_NODE_VERSION: "22"
-          HOSTINGER_BUILD_SCRIPT: build
+          HOSTINGER_BUILD_SCRIPT: build:hostinger
           HOSTINGER_APP_TYPE: next
           HOSTINGER_PACKAGE_MANAGER: npm
           HOSTINGER_OUTPUT_DIRECTORY: .next
