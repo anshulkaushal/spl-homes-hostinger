@@ -1,11 +1,12 @@
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { assertStagingDatabaseTarget } from "./db-target.mjs";
+import { assertDatabaseTargetForEnv } from "./db-target.mjs";
 
 const url = process.env.DATABASE_URL;
+const appEnv = process.env.APP_ENV;
 
 if (!url) {
-  if (process.env.APP_ENV === "staging" || process.env.APP_ENV === "production") {
+  if (appEnv === "staging" || appEnv === "production") {
     console.error("DATABASE_URL is required for migrate:deploy in staging/production.");
     process.exit(1);
   }
@@ -26,20 +27,19 @@ const database = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
 const maskedHost =
   host.length <= 6 ? "***" : `${host.slice(0, 2)}***${host.slice(-4)}`;
 
-console.log(`Prisma target host=${maskedHost} database=${database}`);
+console.log(`Prisma target env=${appEnv || "(unset)"} host=${maskedHost} database=${database}`);
 
-const target = assertStagingDatabaseTarget(database, host);
-if (target.reason === "production") {
-  console.error("Refusing to migrate a database that looks like production.");
-  process.exit(1);
-}
-if (
-  target.reason === "not-staging" &&
-  process.env.ALLOW_NONSTAGING_NAME !== "true"
-) {
-  console.error(
-    "Database host/name does not look like staging. Set ALLOW_NONSTAGING_NAME=true only after confirming the target.",
-  );
+const target = assertDatabaseTargetForEnv(appEnv, database, host);
+if (!target.ok) {
+  const messages = {
+    "unknown-env": "Refusing to migrate: APP_ENV must be staging or production.",
+    "not-spl-homes": "Refusing to migrate a database that is not an SPL Homes target.",
+    production: "Refusing to migrate a production database from staging.",
+    staging: "Refusing to migrate a staging database from production.",
+    "not-staging": "Refusing to migrate: SPL Homes staging database name is required.",
+    "not-production": "Refusing to migrate: SPL Homes production database name is required.",
+  };
+  console.error(messages[target.reason] || `Refusing to migrate: ${target.reason}`);
   process.exit(1);
 }
 
