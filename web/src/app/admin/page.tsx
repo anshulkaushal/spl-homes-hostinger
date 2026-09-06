@@ -18,8 +18,22 @@ export default async function AdminPage() {
   return (
     <div className="bg-paper-2 px-5 py-16">
       <div className="mx-auto max-w-5xl">
-        <h1 className="font-display text-4xl">Admin</h1>
-        <p className="mt-2 text-ink-soft">Leads only in this first version. Full CMS follows.</p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="font-display text-4xl">Admin</h1>
+            <p className="mt-2 text-ink-soft">Leads only in this first version. Full CMS follows.</p>
+          </div>
+          {authed ? (
+            <form action="/admin/logout" method="post">
+              <button
+                type="submit"
+                className="min-h-12 border border-stone bg-cream px-5 text-sm font-semibold uppercase tracking-wide text-ink"
+              >
+                Logout
+              </button>
+            </form>
+          ) : null}
+        </div>
 
         {!authed ? (
           <form action="/admin/login" method="post" className="mt-8 max-w-md bg-cream p-6">
